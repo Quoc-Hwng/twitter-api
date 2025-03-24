@@ -7,7 +7,8 @@ const envConfig = () => ({
   BASE_PATH: getEnv('BASE_PATH', '/api'),
 
   MONGODB_URI: getEnv('MONGODB_URI'),
-  DATABASE_NAME: getEnv('DATABASE_NAME')
+  DATABASE_NAME: getEnv('DATABASE_NAME'),
+  DB_USERS_COLLECTION: getEnv('DB_USERS_COLLECTION')
 })
 
 export const environment = envConfig()
