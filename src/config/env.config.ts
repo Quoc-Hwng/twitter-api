@@ -1,3 +1,4 @@
+import { get } from 'http'
 import { getEnv } from '~/utils/getEnv'
 
 const envConfig = () => ({
@@ -8,7 +9,12 @@ const envConfig = () => ({
 
   MONGODB_URI: getEnv('MONGODB_URI'),
   DATABASE_NAME: getEnv('DATABASE_NAME'),
-  DB_USERS_COLLECTION: getEnv('DB_USERS_COLLECTION')
+  DB_USERS_COLLECTION: getEnv('DB_USERS_COLLECTION'),
+
+  ACCESS_TOKEN_SECRET_SIGNATURE: getEnv('ACCESS_TOKEN_SECRET_SIGNATURE'),
+  REFRESH_TOKEN_SECRET_SIGNATURE: getEnv('REFRESH_TOKEN_SECRET_SIGNATURE'),
+  ACCESS_TOKEN_LIFE: getEnv('ACCESS_TOKEN_LIFE'),
+  REFRESH_TOKEN_LIFE: getEnv('REFRESH_TOKEN_LIFE')
 })
 
 export const environment = envConfig()

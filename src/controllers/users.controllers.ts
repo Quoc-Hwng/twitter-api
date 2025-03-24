@@ -1,5 +1,6 @@
 import { Request, Response } from 'express'
 import databaseConfig from '~/config/database.config'
+import { HTTP_STATUS } from '~/config/http.config'
 import User from '~/models/schemas/User.schema'
 import { RegisterBodyType } from '~/schemaValidations/users.schema'
 import usersService from '~/services/users.services'
@@ -7,9 +8,9 @@ import usersService from '~/services/users.services'
 export const loginController = (req: Request, res: Response) => {
   const { email, password } = req.body
   if (email == 'haha' && password == 'haha') {
-    res.status(200).json({ message: 'Login successful' })
+    res.status(HTTP_STATUS.OK).json({ message: 'Login successful' })
   } else {
-    res.status(400).json({ message: 'Login failed' })
+    res.status(HTTP_STATUS.BAD_REQUEST).json({ message: 'Login failed' })
   }
 }
 export const registerController = async (req: Request, res: Response) => {
@@ -17,13 +18,14 @@ export const registerController = async (req: Request, res: Response) => {
   try {
     const existingUser = await usersService.findUserByEmail(data.email)
     if (existingUser) {
-      res.status(400).json({
+      res.status(HTTP_STATUS.BAD_REQUEST).json({
         errors: [{ path: 'email', message: 'Email already exists' }]
       })
+      return
     }
     const result = await usersService.register(data)
-    res.status(201).json({ result, message: 'Register success' })
+    res.status(HTTP_STATUS.CREATED).json({ result, message: 'Register success' })
   } catch (error) {
-    res.status(400).json({ message: 'Register failed', error })
+    res.status(HTTP_STATUS.BAD_REQUEST).json({ message: 'Register failed', error })
   }
 }
