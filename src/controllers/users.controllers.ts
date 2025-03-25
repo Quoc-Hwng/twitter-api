@@ -1,18 +1,20 @@
 import { NextFunction, Request, Response } from 'express'
-import databaseConfig from '~/config/database.config'
 import { HTTP_STATUS } from '~/config/http.config'
-import { USERS_MESSAGES } from '~/constants/mesages'
-import User from '~/models/schemas/User.schema'
-import { RegisterBodyType } from '~/schemaValidations/auth.schema'
+import { LoginBodyType, LoginRes, RegisterBodyType, registerResponseSchema } from '~/schemaValidations/auth.schema'
 import usersService from '~/services/users.services'
 import { ValidationError } from '~/utils/errors'
 
-export const loginController = (req: Request, res: Response) => {
-  const { email, password } = req.body
-  if (email == 'haha' && password == 'haha') {
-    res.status(HTTP_STATUS.OK).json({ message: 'Login successful' })
-  } else {
-    res.status(HTTP_STATUS.BAD_REQUEST).json({ message: 'Login failed' })
+export const loginController = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const data: LoginBodyType = req.body
+    const result = await usersService.login(data)
+    const validatedResponse = LoginRes.parse({
+      message: 'Login success',
+      data: result
+    })
+    res.status(HTTP_STATUS.OK).json(validatedResponse)
+  } catch (error) {
+    next(error)
   }
 }
 export const registerController = async (req: Request, res: Response, next: NextFunction) => {
@@ -23,12 +25,11 @@ export const registerController = async (req: Request, res: Response, next: Next
       throw new ValidationError('Validation failed', [{ path: 'email', message: 'Email already exists' }])
     }
     const result = await usersService.register(data)
-    res.status(HTTP_STATUS.CREATED).json({
-      status: 'success',
-      code: HTTP_STATUS.CREATED,
-      data: result,
-      message: 'Register success'
+    const validatedResponse = registerResponseSchema.parse({
+      message: 'Register success',
+      data: result
     })
+    res.status(HTTP_STATUS.CREATED).json(validatedResponse)
   } catch (error) {
     next(error)
   }

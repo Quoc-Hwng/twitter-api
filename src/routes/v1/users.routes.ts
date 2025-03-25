@@ -1,10 +1,9 @@
 import { Router } from 'express'
 import { loginController, registerController } from '~/controllers/users.controllers'
 import validate from '~/middlewares/validate.middleware'
-import { registerSchema } from '~/schemaValidations/auth.schema'
-// import { loginValidator } from '~/schemaValidations/users.schema'
+import { loginSchema, registerSchema } from '~/schemaValidations/auth.schema'
 
 export const usersRouter = Router()
 
-// usersRouter.post('/login', loginValidator, loginController)
+usersRouter.post('/login', validate(loginSchema), loginController)
 usersRouter.post('/register', validate(registerSchema), registerController)
