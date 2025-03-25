@@ -1,4 +1,3 @@
-import { get } from 'http'
 import { getEnv } from '~/utils/getEnv'
 
 const envConfig = () => ({

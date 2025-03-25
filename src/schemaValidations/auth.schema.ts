@@ -33,3 +33,13 @@ export const registerSchema = z
   })
 
 export type RegisterBodyType = z.infer<typeof registerSchema>
+
+export const loginSchema = z.object({
+  email: z.string().email({ message: 'Invalid email format' }),
+  password: z
+    .string()
+    .min(6, { message: 'Password must be at least 6 characters' })
+    .max(100, { message: 'Password must be at most 100 characters' })
+})
+
+export type LoginBody = z.infer<typeof loginSchema>

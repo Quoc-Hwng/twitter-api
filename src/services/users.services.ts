@@ -1,6 +1,6 @@
 import databaseConfig from '~/config/database.config'
 import User from '~/models/schemas/User.schema'
-import { RegisterBodyType } from '../schemaValidations/users.schema'
+import { RegisterBodyType } from '../schemaValidations/auth.schema'
 import { hashValue } from '~/utils/bcrypt'
 import { getExpiresIn, signToken } from '~/utils/jwt'
 import { TokenType, UserVerifyStatus } from '~/constants/enum'

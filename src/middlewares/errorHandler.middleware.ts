@@ -1,3 +1,4 @@
+import { ZodError } from 'zod'
 import { Request, Response, NextFunction } from 'express'
 import { HttpError } from '~/utils/errors'
 
@@ -6,12 +7,21 @@ export const errorHandler = (err: Error, req: Request, res: Response, next: Next
 
   let statusCode = 500
   let message = 'Internal Server Error'
-  let data: Record<string, unknown> | null = null
+  let errors: { path: string; message: string }[] = []
 
-  if (err instanceof HttpError) {
+  if (err instanceof ZodError) {
+    // Xử lý lỗi từ Zod
+    statusCode = 400
+    message = 'Validation failed'
+    errors = err.errors.map((e) => ({
+      path: e.path.join('.'),
+      message: e.message
+    }))
+  } else if (err instanceof HttpError) {
+    // Xử lý lỗi HTTP custom
     statusCode = err.statusCode
     message = err.message
-    data = err.data || null
+    errors = err.errors || []
   }
 
   if (!isProduction) {
@@ -19,13 +29,14 @@ export const errorHandler = (err: Error, req: Request, res: Response, next: Next
       message: err.message,
       stack: err.stack,
       statusCode,
-      data
+      errors
     })
   }
 
   res.status(statusCode).json({
     status: 'error',
+    code: statusCode,
     message,
-    ...(data && { data })
+    ...(errors.length > 0 ? { errors } : {})
   })
 }

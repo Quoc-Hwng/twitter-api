@@ -1,18 +1,23 @@
+interface ErrorDetail {
+  path: string
+  message: string
+}
+
 export class HttpError extends Error {
   statusCode: number
-  data?: Record<string, unknown>
+  errors?: ErrorDetail[]
 
-  constructor(message: string, statusCode: number, data?: Record<string, unknown>) {
+  constructor(message: string, statusCode: number, errors?: ErrorDetail[]) {
     super(message)
     this.statusCode = statusCode
-    this.data = data
+    this.errors = errors
     Object.setPrototypeOf(this, HttpError.prototype)
   }
 }
 
 export class ValidationError extends HttpError {
-  constructor(message: string, data?: Record<string, unknown>) {
-    super(message, 400, data)
+  constructor(message: string, errors: ErrorDetail[]) {
+    super(message, 400, errors)
     this.name = 'ValidationError'
   }
 }
