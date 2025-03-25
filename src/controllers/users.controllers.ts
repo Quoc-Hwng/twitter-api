@@ -2,7 +2,14 @@ import { NextFunction, Request, Response } from 'express'
 import { environment } from '~/config/env.config'
 import { HTTP_STATUS } from '~/config/http.config'
 import { USERS_MESSAGES } from '~/constants/mesages'
-import { LoginBodyType, LoginRes, RegisterBodyType, RegisterRes } from '~/schemaValidations/auth.schema'
+import {
+  LoginBodyType,
+  LoginRes,
+  RefreshTokenBodyType,
+  RefreshTokenRes,
+  RegisterBodyType,
+  RegisterRes
+} from '~/schemaValidations/auth.schema'
 import usersService from '~/services/users.services'
 import { UnauthorizedError, ValidationError } from '~/utils/errors'
 import { verifyToken } from '~/utils/jwt'
@@ -53,11 +60,11 @@ export const logoutController = async (req: Request, res: Response, next: NextFu
         { path: 'accessToken', message: 'Access token is required' }
       ])
     }
-    const decoded = verifyToken({ token: accessToken, secretOrPublicKey: environment.ACCESS_TOKEN_SECRET_SIGNATURE })
-    if (!decoded) {
-      throw new UnauthorizedError('Unauthorized: Invalid token')
-    }
+    // if (!decoded) {
+    //   throw new UnauthorizedError('Unauthorized: Invalid token')
+    // }
     const { refreshToken } = req.body
+    // const decoded = verifyToken({ token: refreshToken, secretOrPublicKey: environment.ACCESS_TOKEN_SECRET_SIGNATURE })
     if (!refreshToken) {
       throw new UnauthorizedError('Refresh token is required')
     }
@@ -66,6 +73,19 @@ export const logoutController = async (req: Request, res: Response, next: NextFu
       status: 'success',
       message: USERS_MESSAGES.LOGOUT_SUCCESS
     })
+  } catch (error) {
+    next(error)
+  }
+}
+export const refreshTokenController = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { refreshToken }: RefreshTokenBodyType = req.body
+    const result = await usersService.refreshToken({ refreshToken })
+    const validatedResponse = RefreshTokenRes.parse({
+      message: USERS_MESSAGES.REFRESH_TOKEN_SUCCESS,
+      data: result
+    })
+    res.status(HTTP_STATUS.OK).json(validatedResponse)
   } catch (error) {
     next(error)
   }
