@@ -10,7 +10,7 @@ const passwordSchema = z
   .refine((value) => /\d/.test(value), 'Password must contain at least one number')
   .refine((value) => /[!@#$%^&*(),.?":{}|<>]/.test(value), 'Password must contain at least one special character')
 
-export const registerSchema = z
+export const RegisterBody = z
   .object({
     // ✅ name không được rỗng, có độ dài từ 1 đến 100 ký tự
     name: z.string().min(1, 'Name is required').max(100, 'Name must be at most 100 characters').trim(),
@@ -32,9 +32,9 @@ export const registerSchema = z
     message: 'Passwords do not match'
   })
 
-export type RegisterBodyType = z.infer<typeof registerSchema>
+export type RegisterBodyType = z.infer<typeof RegisterBody>
 
-export const registerResponseSchema = z.object({
+export const RegisterRes = z.object({
   message: z.string(),
   data: z.object({
     accessToken: z.string(),
@@ -49,17 +49,19 @@ export const registerResponseSchema = z.object({
   })
 })
 
-export type RegisterResponse = z.infer<typeof registerResponseSchema>
+export type RegisterResponse = z.infer<typeof RegisterRes>
 
-export const loginSchema = z.object({
-  email: z.string().email({ message: 'Invalid email format' }),
-  password: z
-    .string()
-    .min(6, { message: 'Password must be at least 6 characters' })
-    .max(100, { message: 'Password must be at most 100 characters' })
-})
+export const LoginBody = z
+  .object({
+    email: z.string().email({ message: 'Invalid email format' }),
+    password: z
+      .string()
+      .min(6, { message: 'Password must be at least 6 characters' })
+      .max(100, { message: 'Password must be at most 100 characters' })
+  })
+  .strict()
 
-export type LoginBodyType = z.infer<typeof loginSchema>
+export type LoginBodyType = z.infer<typeof LoginBody>
 
 export const LoginRes = z.object({
   data: z.object({
@@ -77,3 +79,33 @@ export const LoginRes = z.object({
 })
 
 export type LoginResType = z.TypeOf<typeof LoginRes>
+
+export const RefreshTokenBody = z
+  .object({
+    refreshToken: z.string()
+  })
+  .strict()
+
+export type RefreshTokenBodyType = z.TypeOf<typeof RefreshTokenBody>
+
+export const RefreshTokenRes = z.object({
+  data: z.object({
+    accessToken: z.string(),
+    refreshToken: z.string()
+  }),
+  message: z.string()
+})
+
+export type RefreshTokenResType = z.TypeOf<typeof RefreshTokenRes>
+
+export const LogoutBody = z
+  .object({
+    refreshToken: z.string()
+  })
+  .strict()
+
+export type LogoutBodyType = z.TypeOf<typeof LogoutBody>
+
+export const LoginGoogleQuery = z.object({
+  code: z.string()
+})

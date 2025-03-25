@@ -106,6 +106,15 @@ class UsersService {
       }
     }
   }
+  async logout(refreshToken: string) {
+    const result = await databaseConfig.refreshTokens.deleteOne({ token: refreshToken })
+
+    if (result.deletedCount === 0) {
+      throw new ValidationError(USERS_MESSAGES.VALIDATION_FAILED, [
+        { path: 'Refresh Token', message: 'Invalid refresh token' }
+      ])
+    }
+  }
 }
 
 const usersService = new UsersService()
