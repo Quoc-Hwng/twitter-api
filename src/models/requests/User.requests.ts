@@ -2,7 +2,7 @@ import { JwtPayload } from 'jsonwebtoken'
 import { TokenType, UserVerifyStatus } from '~/constants/enum'
 
 export interface TokenPayload extends JwtPayload {
-  user_id: string
+  userId: string
   token_type: TokenType
   verify: UserVerifyStatus
   exp: number

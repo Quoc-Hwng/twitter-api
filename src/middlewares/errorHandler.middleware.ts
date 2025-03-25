@@ -1,6 +1,7 @@
 import { ZodError } from 'zod'
 import { Request, Response, NextFunction } from 'express'
 import { HttpError } from '~/utils/errors'
+import { USERS_MESSAGES } from '~/constants/mesages'
 
 export const errorHandler = (err: Error, req: Request, res: Response, next: NextFunction): void => {
   const isProduction = process.env.NODE_ENV === 'production'
@@ -12,7 +13,7 @@ export const errorHandler = (err: Error, req: Request, res: Response, next: Next
   if (err instanceof ZodError) {
     // Xử lý lỗi từ Zod
     statusCode = 400
-    message = 'Validation failed'
+    message = USERS_MESSAGES.VALIDATION_FAILED
     errors = err.errors.map((e) => ({
       path: e.path.join('.'),
       message: e.message

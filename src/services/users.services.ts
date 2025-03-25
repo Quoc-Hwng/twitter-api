@@ -6,12 +6,15 @@ import { getExpiresIn, signToken } from '~/utils/jwt'
 import { TokenType } from '~/constants/enum'
 import { environment } from '~/config/env.config'
 import { ObjectId } from 'mongodb'
+import { ValidationError } from '~/utils/errors'
+import RefreshToken from '~/models/schemas/RefreshToken.schema'
+import { USERS_MESSAGES } from '~/constants/mesages'
 
 class UsersService {
-  private signAccessToken(user_id: string) {
+  private signAccessToken(userId: string) {
     return signToken({
       payload: {
-        user_id,
+        userId,
         token_type: TokenType.AccessToken
       },
       privateKey: environment.ACCESS_TOKEN_SECRET_SIGNATURE,
@@ -20,10 +23,10 @@ class UsersService {
       }
     })
   }
-  private signRefreshToken(user_id: string) {
+  private signRefreshToken(userId: string) {
     return signToken({
       payload: {
-        user_id,
+        userId,
         token_type: TokenType.RefreshToken
       },
       privateKey: environment.REFRESH_TOKEN_SECRET_SIGNATURE,
@@ -33,8 +36,8 @@ class UsersService {
     })
   }
 
-  private signAccessAndRefreshToken(user_id: string) {
-    return Promise.all([this.signAccessToken(user_id), this.signRefreshToken(user_id)])
+  private signAccessAndRefreshToken(userId: string) {
+    return Promise.all([this.signAccessToken(userId), this.signRefreshToken(userId)])
   }
 
   async register(data: RegisterBodyType) {
@@ -42,14 +45,17 @@ class UsersService {
     const result = await databaseConfig.users.insertOne(
       new User({ ...data, password: hashedPassword, date_of_birth: new Date(data.date_of_birth) })
     )
-    const user_id = result.insertedId.toString()
-    const user = await this.findUserById(user_id).then((user) => {
+    const userId = result.insertedId.toString()
+    const user = await this.findUserById(userId).then((user) => {
       return {
         ...user,
         date_of_birth: user?.date_of_birth.toISOString()
       }
     })
-    const [accessToken, refreshToken] = await this.signAccessAndRefreshToken(user_id)
+    const [accessToken, refreshToken] = await this.signAccessAndRefreshToken(userId)
+    await databaseConfig.refreshTokens.insertOne(
+      new RefreshToken({ userId: new ObjectId(userId), token: refreshToken })
+    )
     return {
       accessToken,
       refreshToken,
@@ -67,21 +73,27 @@ class UsersService {
     return databaseConfig.users.findOne({ email })
   }
 
-  async findUserById(user_id: string) {
-    return databaseConfig.users.findOne({ _id: new ObjectId(user_id) })
+  async findUserById(userId: string) {
+    return databaseConfig.users.findOne({ _id: new ObjectId(userId) })
   }
 
   async login(data: LoginBodyType) {
     const user = await this.findUserByEmail(data.email)
     if (!user) {
-      throw new Error('Invalid email or password')
+      throw new ValidationError(USERS_MESSAGES.VALIDATION_FAILED, [
+        { path: 'email', message: USERS_MESSAGES.INVALID_EMAIL_OR_PASSWORD }
+      ])
+      // throw new Error('Invalid email or password')
     }
 
     const isMatchPassword = await compareValue(data.password, user.password)
     if (!isMatchPassword) {
-      throw new Error('Invalid email or password')
+      throw new ValidationError(USERS_MESSAGES.VALIDATION_FAILED, [
+        { path: 'password', message: USERS_MESSAGES.INVALID_EMAIL_OR_PASSWORD }
+      ])
     }
     const [accessToken, refreshToken] = await this.signAccessAndRefreshToken(user._id.toString())
+    await databaseConfig.refreshTokens.insertOne(new RefreshToken({ userId: user._id, token: refreshToken }))
     return {
       accessToken,
       refreshToken,

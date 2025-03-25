@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express'
 import { ZodType, ZodError } from 'zod'
 import { HTTP_STATUS } from '~/config/http.config'
+import { USERS_MESSAGES } from '~/constants/mesages'
 
 const validate =
   <T>(schema: ZodType<T>) =>
@@ -18,7 +19,7 @@ const validate =
         res.status(HTTP_STATUS.BAD_REQUEST).json({
           status: 'error',
           code: HTTP_STATUS.BAD_REQUEST,
-          message: 'Validation failed',
+          message: USERS_MESSAGES.VALIDATION_FAILED,
           errors
         })
       }
