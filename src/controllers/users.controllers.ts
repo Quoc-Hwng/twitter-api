@@ -1,18 +1,18 @@
 import { NextFunction, Request, Response } from 'express'
 import { environment } from '~/config/env.config'
 import { HTTP_STATUS } from '~/config/http.config'
-import { USERS_MESSAGES } from '~/constants/mesages'
+import { USERS_MESSAGES } from '~/constants/messages'
 import {
   LoginBodyType,
   LoginRes,
   RefreshTokenBodyType,
   RefreshTokenRes,
   RegisterBodyType,
-  RegisterRes
+  RegisterRes,
+  VerifyEmailBodyType
 } from '~/schemaValidations/auth.schema'
 import usersService from '~/services/users.services'
 import { UnauthorizedError, ValidationError } from '~/utils/errors'
-import { verifyToken } from '~/utils/jwt'
 
 export const loginController = async (req: Request, res: Response, next: NextFunction) => {
   try {
@@ -38,8 +38,7 @@ export const registerController = async (req: Request, res: Response, next: Next
     }
     const result = await usersService.register(data)
     const validatedResponse = RegisterRes.parse({
-      message: USERS_MESSAGES.REGISTER_SUCCESS,
-      data: result
+      message: result
     })
     res.status(HTTP_STATUS.CREATED).json(validatedResponse)
   } catch (error) {
@@ -83,6 +82,20 @@ export const refreshTokenController = async (req: Request, res: Response, next: 
     const result = await usersService.refreshToken({ refreshToken })
     const validatedResponse = RefreshTokenRes.parse({
       message: USERS_MESSAGES.REFRESH_TOKEN_SUCCESS,
+      data: result
+    })
+    res.status(HTTP_STATUS.OK).json(validatedResponse)
+  } catch (error) {
+    next(error)
+  }
+}
+
+export const verifyEmailController = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const data: VerifyEmailBodyType = req.body
+    const result = await usersService.verifyEmail(data.verifyToken)
+    const validatedResponse = LoginRes.parse({
+      message: USERS_MESSAGES.EMAIL_VERIFY_SUCCESS,
       data: result
     })
     res.status(HTTP_STATUS.OK).json(validatedResponse)

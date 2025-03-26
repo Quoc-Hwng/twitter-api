@@ -3,18 +3,20 @@ import User from '~/models/schemas/User.schema'
 import { LoginBodyType, RegisterBodyType } from '../schemaValidations/auth.schema'
 import { compareValue, hashValue } from '~/utils/bcrypt'
 import { getExpiresIn, signToken, verifyToken } from '~/utils/jwt'
-import { TokenType } from '~/constants/enum'
+import { TokenType, UserVerifyStatus } from '~/constants/enum'
 import { environment } from '~/config/env.config'
 import { ObjectId } from 'mongodb'
-import { ValidationError } from '~/utils/errors'
+import { NotFoundError, ValidationError } from '~/utils/errors'
 import RefreshToken from '~/models/schemas/RefreshToken.schema'
-import { USERS_MESSAGES } from '~/constants/mesages'
+import { USERS_MESSAGES } from '~/constants/messages'
+import { v4 as uuidv4 } from 'uuid'
 
 class UsersService {
-  private signAccessToken({ userId }: { userId: string }) {
+  private signAccessToken({ userId, jti }: { userId: string; jti: string }) {
     return signToken({
       payload: {
         userId,
+        jti,
         token_type: TokenType.AccessToken
       },
       privateKey: environment.ACCESS_TOKEN_SECRET_SIGNATURE,
@@ -23,13 +25,13 @@ class UsersService {
       }
     })
   }
-  private signRefreshToken({ userId, exp }: { userId: string; exp?: number }) {
+  private signRefreshToken({ userId, jti, exp }: { userId: string; jti: string; exp?: number }) {
     if (exp) {
       return signToken({
         payload: {
           userId,
+          jti,
           token_type: TokenType.RefreshToken,
-
           exp
         },
         privateKey: environment.REFRESH_TOKEN_SECRET_SIGNATURE
@@ -38,6 +40,7 @@ class UsersService {
     return signToken({
       payload: {
         userId,
+        jti,
         token_type: TokenType.RefreshToken
       },
       privateKey: environment.REFRESH_TOKEN_SECRET_SIGNATURE,
@@ -46,9 +49,22 @@ class UsersService {
       }
     })
   }
+  private signEmailVerifyToken({ userId, emailVerifyToken }: { userId: string; emailVerifyToken: string }) {
+    return signToken({
+      payload: {
+        userId,
+        emailVerifyToken,
+        token_type: TokenType.EmailVerifyToken
+      },
+      privateKey: environment.EMAIL_VERIFY_TOKEN_SECRET_SIGNATURE,
+      options: {
+        expiresIn: getExpiresIn(environment.EMAIL_VERIFY_TOKEN_LIFE)
+      }
+    })
+  }
 
-  private signAccessAndRefreshToken({ userId }: { userId: string }) {
-    return Promise.all([this.signAccessToken({ userId }), this.signRefreshToken({ userId })])
+  private signAccessAndRefreshToken({ userId, jti }: { userId: string; jti: string }) {
+    return Promise.all([this.signAccessToken({ userId, jti }), this.signRefreshToken({ userId, jti })])
   }
   private decodeRefreshToken(refresh_token: string) {
     return verifyToken({
@@ -56,36 +72,30 @@ class UsersService {
       secretOrPublicKey: environment.REFRESH_TOKEN_SECRET_SIGNATURE
     })
   }
+  private decodeEmailVerifyToken(emailVerifyToken: string) {
+    return verifyToken({
+      token: emailVerifyToken,
+      secretOrPublicKey: environment.EMAIL_VERIFY_TOKEN_SECRET_SIGNATURE
+    })
+  }
 
   async register(data: RegisterBodyType) {
     const hashedPassword = await hashValue(data.password)
+    const emailVerifyToken = uuidv4()
     const result = await databaseConfig.users.insertOne(
-      new User({ ...data, password: hashedPassword, date_of_birth: new Date(data.date_of_birth) })
+      new User({
+        ...data,
+        password: hashedPassword,
+        verifyEmailToken: emailVerifyToken,
+        date_of_birth: new Date(data.date_of_birth),
+        _destroy: false
+      })
     )
     const userId = result.insertedId.toString()
-    const user = await this.findUserById(userId).then((user) => {
-      return {
-        ...user,
-        date_of_birth: user?.date_of_birth.toISOString()
-      }
-    })
-    const [accessToken, refreshToken] = await this.signAccessAndRefreshToken({
-      userId
-    })
-    const { iat, exp } = await this.decodeRefreshToken(refreshToken)
-    await databaseConfig.refreshTokens.insertOne(
-      new RefreshToken({ userId: new ObjectId(userId), token: refreshToken, iat, exp })
-    )
-    return {
-      accessToken,
-      refreshToken,
-      user: {
-        id: user._id?.toString(),
-        name: user.name,
-        email: user.email,
-        avatar: user.avatar,
-        date_of_birth: user.date_of_birth
-      }
+    const verifyEmailToken = await this.signEmailVerifyToken({ userId, emailVerifyToken })
+    console.log(verifyEmailToken)
+    if (result.acknowledged) {
+      return 'Registration successful. Please check your email to verify your account.'
     }
   }
 
@@ -114,11 +124,13 @@ class UsersService {
 
     //Logic login
     const userId = user._id.toString()
+    const jti = uuidv4()
     const [accessToken, refreshToken] = await this.signAccessAndRefreshToken({
-      userId
+      userId,
+      jti
     })
     const { iat, exp } = await this.decodeRefreshToken(refreshToken)
-    await databaseConfig.refreshTokens.insertOne(new RefreshToken({ userId: user._id, token: refreshToken, iat, exp }))
+    await databaseConfig.refreshTokens.insertOne(new RefreshToken({ userId: user._id, token: jti, iat, exp }))
     return {
       accessToken,
       refreshToken,
@@ -131,33 +143,90 @@ class UsersService {
       }
     }
   }
+
+  //RefreshToken
   async refreshToken({ refreshToken }: { refreshToken: string }) {
-    const { userId } = await this.decodeRefreshToken(refreshToken)
+    const { userId, jti: oldJti } = await this.decodeRefreshToken(refreshToken)
+    if (!userId || !oldJti) {
+      throw new Error('Invalid refresh token')
+    }
+    const newJti = uuidv4()
     const [newAccessToken, newRefreshToken] = await Promise.all([
       this.signAccessToken({
-        userId
+        userId,
+        jti: newJti
       }),
       this.signRefreshToken({
-        userId
+        userId,
+        jti: newJti
       }),
-      databaseConfig.refreshTokens.deleteOne({ token: refreshToken })
+      databaseConfig.refreshTokens.deleteOne({ token: oldJti })
     ])
     const { iat, exp } = await this.decodeRefreshToken(newRefreshToken)
     await databaseConfig.refreshTokens.insertOne(
-      new RefreshToken({ userId: new ObjectId(userId), token: newRefreshToken, iat, exp })
+      new RefreshToken({ userId: new ObjectId(userId), token: newJti, iat, exp })
     )
     return {
       accessToken: newAccessToken,
       refreshToken: newRefreshToken
     }
   }
+
+  //Logout
   async logout(refreshToken: string) {
-    const result = await databaseConfig.refreshTokens.deleteOne({ token: refreshToken })
+    const { jti } = await this.decodeRefreshToken(refreshToken)
+    const result = await databaseConfig.refreshTokens.deleteOne({ token: jti })
 
     if (result.deletedCount === 0) {
+      throw new NotFoundError(USERS_MESSAGES.USED_REFRESH_TOKEN_OR_NOT_EXIST)
+    }
+  }
+
+  //Verify Account
+  async verifyEmail(token: string) {
+    const { userId, emailVerifyToken } = await this.decodeEmailVerifyToken(token)
+    console.log(emailVerifyToken)
+    const user = await this.findUserById(userId)
+    if (!user) {
+      throw new NotFoundError(USERS_MESSAGES.USER_NOT_FOUND)
+    }
+    if (user.verifyEmailToken !== emailVerifyToken) {
       throw new ValidationError(USERS_MESSAGES.VALIDATION_FAILED, [
-        { path: 'Refresh Token', message: 'Invalid refresh token' }
+        { path: 'token', message: USERS_MESSAGES.EMAIL_VERIFY_TOKEN_IS_REQUIRED }
       ])
+    }
+    if (user.verify === UserVerifyStatus.Verified) {
+      throw new ValidationError(USERS_MESSAGES.VALIDATION_FAILED, [
+        { path: 'token', message: USERS_MESSAGES.YOUR_ACCOUNT_IS_ALREADY_ACTIVE }
+      ])
+    }
+    await databaseConfig.users.updateOne(
+      { _id: new ObjectId(userId) },
+      {
+        $set: {
+          verify: UserVerifyStatus.Verified,
+          verifyEmailToken: '',
+          updatedAt: new Date()
+        }
+      }
+    )
+    const jti = uuidv4()
+    const [accessToken, refreshToken] = await this.signAccessAndRefreshToken({
+      userId,
+      jti
+    })
+    const { iat, exp } = await this.decodeRefreshToken(refreshToken)
+    await databaseConfig.refreshTokens.insertOne(new RefreshToken({ userId: user._id, token: jti, iat, exp }))
+    return {
+      accessToken,
+      refreshToken,
+      user: {
+        id: userId,
+        email: user.email,
+        name: user.name,
+        avatar: user.avatar,
+        date_of_birth: user.date_of_birth.toISOString()
+      }
     }
   }
 }

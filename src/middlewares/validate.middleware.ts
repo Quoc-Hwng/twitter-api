@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from 'express'
 import { ZodType, ZodError } from 'zod'
 import { HTTP_STATUS } from '~/config/http.config'
-import { USERS_MESSAGES } from '~/constants/mesages'
+import { USERS_MESSAGES } from '~/constants/messages'
 
 const validate =
   <T>(schema: ZodType<T>) =>

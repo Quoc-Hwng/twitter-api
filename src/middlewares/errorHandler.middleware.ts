@@ -1,7 +1,7 @@
 import { ZodError } from 'zod'
 import { Request, Response, NextFunction } from 'express'
 import { HttpError } from '~/utils/errors'
-import { USERS_MESSAGES } from '~/constants/mesages'
+import { USERS_MESSAGES } from '~/constants/messages'
 
 export const errorHandler = (err: Error, req: Request, res: Response, next: NextFunction): void => {
   const isProduction = process.env.NODE_ENV === 'production'

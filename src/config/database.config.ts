@@ -9,7 +9,13 @@ class DatabaseConfig {
   private client: MongoClient
   private db: Db
   constructor() {
-    this.client = new MongoClient(uri)
+    this.client = new MongoClient(uri, {
+      serverApi: {
+        version: ServerApiVersion.v1,
+        strict: true,
+        deprecationErrors: true
+      }
+    })
     this.db = this.client.db(environment.DATABASE_NAME)
   }
   async connect() {

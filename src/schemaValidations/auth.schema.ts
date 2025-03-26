@@ -35,18 +35,7 @@ export const RegisterBody = z
 export type RegisterBodyType = z.infer<typeof RegisterBody>
 
 export const RegisterRes = z.object({
-  message: z.string(),
-  data: z.object({
-    accessToken: z.string(),
-    refreshToken: z.string(),
-    user: z.object({
-      id: z.string(),
-      name: z.string(),
-      email: z.string(),
-      avatar: z.string().nullable(),
-      date_of_birth: z.string()
-    })
-  })
+  message: z.string()
 })
 
 export type RegisterResponse = z.infer<typeof RegisterRes>
@@ -109,3 +98,16 @@ export type LogoutBodyType = z.TypeOf<typeof LogoutBody>
 export const LoginGoogleQuery = z.object({
   code: z.string()
 })
+
+export const VerifyEmailBody = z
+  .object({
+    verifyToken: z
+      .string({
+        required_error: 'Token is required',
+        invalid_type_error: 'Token must be a string'
+      })
+      .min(1, 'Token cannot be empty')
+  })
+  .strict()
+
+export type VerifyEmailBodyType = z.TypeOf<typeof VerifyEmailBody>

@@ -9,7 +9,7 @@ interface UserType {
   password: string
   createdAt?: Date
   updatedAt?: Date
-  verifyToken?: string
+  verifyEmailToken?: string
   forgotPasswordToken?: string
   verify?: UserVerifyStatus
 
@@ -19,6 +19,8 @@ interface UserType {
   username?: string
   avatar?: string
   coverPhoto?: string
+
+  _destroy: boolean
 }
 
 export default class User {
@@ -29,7 +31,7 @@ export default class User {
   password: string
   createdAt: Date
   updatedAt: Date
-  verifyToken: string
+  verifyEmailToken: string
   forgotPasswordToken: string
   verify: UserVerifyStatus
 
@@ -40,6 +42,8 @@ export default class User {
   avatar: string
   coverPhoto: string
 
+  _destroy: boolean
+
   constructor(user: UserType) {
     this._id = user._id
     this.name = user.name || ''
@@ -48,7 +52,7 @@ export default class User {
     this.password = user.password
     this.createdAt = user.createdAt || new Date()
     this.updatedAt = user.updatedAt || new Date()
-    this.verifyToken = user.verifyToken || ''
+    this.verifyEmailToken = user.verifyEmailToken || ''
     this.forgotPasswordToken = user.forgotPasswordToken || ''
     this.verify = user.verify || UserVerifyStatus.Unverified
 
@@ -58,5 +62,7 @@ export default class User {
     this.username = user.username || ''
     this.avatar = user.avatar || ''
     this.coverPhoto = user.coverPhoto || ''
+
+    this._destroy = user._destroy || false
   }
 }
