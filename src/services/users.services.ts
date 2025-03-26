@@ -66,9 +66,15 @@ class UsersService {
   private signAccessAndRefreshToken({ userId, jti }: { userId: string; jti: string }) {
     return Promise.all([this.signAccessToken({ userId, jti }), this.signRefreshToken({ userId, jti })])
   }
-  private decodeRefreshToken(refresh_token: string) {
+  private decodeAccessToken(accessToken: string) {
     return verifyToken({
-      token: refresh_token,
+      token: accessToken,
+      secretOrPublicKey: environment.ACCESS_TOKEN_SECRET_SIGNATURE
+    })
+  }
+  private decodeRefreshToken(refreshToken: string) {
+    return verifyToken({
+      token: refreshToken,
       secretOrPublicKey: environment.REFRESH_TOKEN_SECRET_SIGNATURE
     })
   }
@@ -92,10 +98,28 @@ class UsersService {
       })
     )
     const userId = result.insertedId.toString()
+    const user = await this.findUserById(userId)
     const verifyEmailToken = await this.signEmailVerifyToken({ userId, emailVerifyToken })
     console.log(verifyEmailToken)
-    if (result.acknowledged) {
-      return 'Registration successful. Please check your email to verify your account.'
+    const jti = uuidv4()
+    const [accessToken, refreshToken] = await this.signAccessAndRefreshToken({
+      userId,
+      jti
+    })
+    const { iat, exp } = await this.decodeRefreshToken(refreshToken)
+    await databaseConfig.refreshTokens.insertOne(
+      new RefreshToken({ userId: new ObjectId(userId), token: jti, iat, exp })
+    )
+    return {
+      accessToken,
+      refreshToken,
+      user: {
+        id: userId,
+        email: user?.email,
+        name: user?.name,
+        avatar: user?.avatar,
+        date_of_birth: user?.date_of_birth.toISOString()
+      }
     }
   }
 
@@ -205,29 +229,39 @@ class UsersService {
       {
         $set: {
           verify: UserVerifyStatus.Verified,
-          verifyEmailToken: '',
-          updatedAt: new Date()
+          verifyEmailToken: ''
+        },
+        $currentDate: {
+          updatedAt: true
         }
       }
     )
-    const jti = uuidv4()
-    const [accessToken, refreshToken] = await this.signAccessAndRefreshToken({
-      userId,
-      jti
-    })
-    const { iat, exp } = await this.decodeRefreshToken(refreshToken)
-    await databaseConfig.refreshTokens.insertOne(new RefreshToken({ userId: user._id, token: jti, iat, exp }))
-    return {
-      accessToken,
-      refreshToken,
-      user: {
-        id: userId,
-        email: user.email,
-        name: user.name,
-        avatar: user.avatar,
-        date_of_birth: user.date_of_birth.toISOString()
-      }
+    return USERS_MESSAGES.EMAIL_VERIFY_SUCCESS
+  }
+
+  //Resend Verify Email
+  async reSendVerifyEmail(token: string) {
+    console.log(token)
+    const { userId } = await this.decodeAccessToken(token)
+    const user = await this.findUserById(userId)
+    if (!user) {
+      throw new NotFoundError(USERS_MESSAGES.USER_NOT_FOUND)
     }
+    if (user.verify === UserVerifyStatus.Verified) {
+      return USERS_MESSAGES.YOUR_ACCOUNT_IS_ALREADY_ACTIVE
+    }
+    await databaseConfig.users.updateOne(
+      { _id: new ObjectId(userId) },
+      {
+        $set: {
+          verifyEmailToken: uuidv4()
+        },
+        $currentDate: {
+          updatedAt: true
+        }
+      }
+    )
+    return USERS_MESSAGES.RESEND_VERIFY_EMAIL_SUCCESS
   }
 }
 

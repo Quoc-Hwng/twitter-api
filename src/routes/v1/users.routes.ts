@@ -4,6 +4,7 @@ import {
   logoutController,
   refreshTokenController,
   registerController,
+  reSendVerifyEmailController,
   verifyEmailController
 } from '~/controllers/users.controllers'
 import validate from '~/middlewares/validate.middleware'
@@ -16,3 +17,4 @@ usersRouter.post('/register', validate(RegisterBody), registerController)
 usersRouter.post('/logout', validate(LogoutBody), logoutController)
 usersRouter.post('/refresh-token', validate(RefreshTokenBody), refreshTokenController)
 usersRouter.post('/verify-email', validate(VerifyEmailBody), verifyEmailController)
+usersRouter.post('/resend-verify-email', reSendVerifyEmailController)

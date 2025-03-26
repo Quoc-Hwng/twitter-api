@@ -9,7 +9,9 @@ import {
   RefreshTokenRes,
   RegisterBodyType,
   RegisterRes,
-  VerifyEmailBodyType
+  ReSendVerifyEmailRes,
+  VerifyEmailBodyType,
+  VerifyEmailRes
 } from '~/schemaValidations/auth.schema'
 import usersService from '~/services/users.services'
 import { UnauthorizedError, ValidationError } from '~/utils/errors'
@@ -38,7 +40,8 @@ export const registerController = async (req: Request, res: Response, next: Next
     }
     const result = await usersService.register(data)
     const validatedResponse = RegisterRes.parse({
-      message: result
+      message: USERS_MESSAGES.REGISTER_SUCCESS,
+      data: result
     })
     res.status(HTTP_STATUS.CREATED).json(validatedResponse)
   } catch (error) {
@@ -94,9 +97,32 @@ export const verifyEmailController = async (req: Request, res: Response, next: N
   try {
     const data: VerifyEmailBodyType = req.body
     const result = await usersService.verifyEmail(data.verifyToken)
-    const validatedResponse = LoginRes.parse({
-      message: USERS_MESSAGES.EMAIL_VERIFY_SUCCESS,
-      data: result
+    const validatedResponse = VerifyEmailRes.parse({
+      message: result
+    })
+    res.status(HTTP_STATUS.OK).json(validatedResponse)
+  } catch (error) {
+    next(error)
+  }
+}
+export const reSendVerifyEmailController = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const authHeader = req.headers.authorization
+    console.log('AccessToken', authHeader)
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      throw new UnauthorizedError('Unauthorized: No token provided')
+    }
+
+    const accessToken = req.headers.authorization?.split(' ')[1]
+    if (!accessToken) {
+      throw new ValidationError(USERS_MESSAGES.VALIDATION_FAILED, [
+        { path: 'accessToken', message: 'Access token is required' }
+      ])
+    }
+
+    const result = await usersService.reSendVerifyEmail(accessToken)
+    const validatedResponse = ReSendVerifyEmailRes.parse({
+      message: result
     })
     res.status(HTTP_STATUS.OK).json(validatedResponse)
   } catch (error) {
