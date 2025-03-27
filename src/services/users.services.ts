@@ -10,6 +10,8 @@ import { NotFoundError, ValidationError } from '~/utils/errors'
 import RefreshToken from '~/models/schemas/RefreshToken.schema'
 import { USERS_MESSAGES } from '~/constants/messages'
 import { v4 as uuidv4 } from 'uuid'
+import crypto from 'crypto'
+import bcrypt from 'bcrypt'
 
 class UsersService {
   private signAccessToken({ userId, jti }: { userId: string; jti: string }) {
@@ -62,6 +64,19 @@ class UsersService {
       }
     })
   }
+  private signPasswordResetToken({ userId, passwordResetToken }: { userId: string; passwordResetToken: string }) {
+    return signToken({
+      payload: {
+        userId,
+        passwordResetToken,
+        token_type: TokenType.ForgotPasswordToken
+      },
+      privateKey: environment.FORGOT_PASSWORD_TOKEN_SECRET_SIGNATURE,
+      options: {
+        expiresIn: getExpiresIn(environment.FORGOT_PASSWORD_TOKEN_LIFE)
+      }
+    })
+  }
 
   private signAccessAndRefreshToken({ userId, jti }: { userId: string; jti: string }) {
     return Promise.all([this.signAccessToken({ userId, jti }), this.signRefreshToken({ userId, jti })])
@@ -101,14 +116,14 @@ class UsersService {
     const user = await this.findUserById(userId)
     const verifyEmailToken = await this.signEmailVerifyToken({ userId, emailVerifyToken })
     console.log(verifyEmailToken)
-    const jti = uuidv4()
+
     const [accessToken, refreshToken] = await this.signAccessAndRefreshToken({
       userId,
-      jti
+      jti: emailVerifyToken
     })
     const { iat, exp } = await this.decodeRefreshToken(refreshToken)
     await databaseConfig.refreshTokens.insertOne(
-      new RefreshToken({ userId: new ObjectId(userId), token: jti, iat, exp })
+      new RefreshToken({ userId: new ObjectId(userId), token: emailVerifyToken, iat, exp })
     )
     return {
       accessToken,
@@ -209,7 +224,6 @@ class UsersService {
   //Verify Account
   async verifyEmail(token: string) {
     const { userId, emailVerifyToken } = await this.decodeEmailVerifyToken(token)
-    console.log(emailVerifyToken)
     const user = await this.findUserById(userId)
     if (!user) {
       throw new NotFoundError(USERS_MESSAGES.USER_NOT_FOUND)
@@ -241,7 +255,6 @@ class UsersService {
 
   //Resend Verify Email
   async reSendVerifyEmail(token: string) {
-    console.log(token)
     const { userId } = await this.decodeAccessToken(token)
     const user = await this.findUserById(userId)
     if (!user) {
@@ -262,6 +275,30 @@ class UsersService {
       }
     )
     return USERS_MESSAGES.RESEND_VERIFY_EMAIL_SUCCESS
+  }
+
+  async forgotPassword(email: string) {
+    const user = await this.findUserByEmail(email)
+    if (!user) {
+      throw new NotFoundError(USERS_MESSAGES.USER_NOT_FOUND)
+    }
+    const userId = user._id.toString()
+
+    const passwordResetToken = uuidv4()
+    await databaseConfig.users.updateOne(
+      { _id: new ObjectId(userId) },
+      {
+        $set: {
+          forgotPasswordToken: passwordResetToken
+        },
+        $currentDate: {
+          updatedAt: true
+        }
+      }
+    )
+    const Token = await this.signPasswordResetToken({ userId, passwordResetToken })
+    console.log(Token)
+    return USERS_MESSAGES.CHECK_EMAIL_TO_RESET_PASSWORD
   }
 }
 

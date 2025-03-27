@@ -1,5 +1,5 @@
 import jwt, { SignOptions } from 'jsonwebtoken'
-import { TokenPayload } from '~/models/requests/User.requests'
+import { TokenPayload } from '~/constants/constants'
 import { UnauthorizedError, InternalServerError } from '~/utils/errors'
 
 export const signToken = ({

@@ -5,6 +5,7 @@ import { USERS_MESSAGES } from '~/constants/messages'
 import {
   LoginBodyType,
   LoginRes,
+  PasswordResetTokenBodyType,
   RefreshTokenBodyType,
   RefreshTokenRes,
   RegisterBodyType,
@@ -125,6 +126,19 @@ export const reSendVerifyEmailController = async (req: Request, res: Response, n
       message: result
     })
     res.status(HTTP_STATUS.OK).json(validatedResponse)
+  } catch (error) {
+    next(error)
+  }
+}
+
+export const forgotPasswordController = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const data: PasswordResetTokenBodyType = req.body
+    const result = await usersService.forgotPassword(data.email)
+    const validatedResponse = ReSendVerifyEmailRes.parse({
+      message: result
+    })
+    res.status(200).json(validatedResponse)
   } catch (error) {
     next(error)
   }

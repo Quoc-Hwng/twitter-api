@@ -134,3 +134,17 @@ export const ReSendVerifyEmailRes = z.object({
 })
 
 export type ReSendVerifyEmailResType = z.TypeOf<typeof VerifyEmailRes>
+
+export const PasswordResetTokenBody = z
+  .object({
+    email: z.string().email('Invalid email format').trim()
+  })
+  .strict()
+
+export type PasswordResetTokenBodyType = z.TypeOf<typeof PasswordResetTokenBody>
+
+export const PasswordResetTokenRes = z.object({
+  message: z.string()
+})
+
+export type PasswordResetTokenType = z.TypeOf<typeof PasswordResetTokenRes>
