@@ -2,17 +2,18 @@ import { ZodError } from 'zod'
 import { Request, Response, NextFunction } from 'express'
 import { HttpError } from '~/utils/errors'
 import { USERS_MESSAGES } from '~/constants/messages'
+import { HTTP_STATUS } from '~/config/http.config'
 
 export const errorHandler = (err: Error, req: Request, res: Response, next: NextFunction): void => {
   const isProduction = process.env.NODE_ENV === 'production'
 
-  let statusCode = 500
+  let statusCode = HTTP_STATUS.INTERNAL_SERVER_ERROR
   let message = 'Internal Server Error'
   let errors: { path: string; message: string }[] = []
 
   if (err instanceof ZodError) {
     // Xử lý lỗi từ Zod
-    statusCode = 400
+    statusCode = HTTP_STATUS.BAD_REQUEST
     message = USERS_MESSAGES.VALIDATION_FAILED
     errors = err.errors.map((e) => ({
       path: e.path.join('.'),

@@ -1,68 +1,29 @@
+import { z } from 'zod'
 import { ObjectId } from 'mongodb'
 import { UserVerifyStatus } from '~/constants/enum'
 
-interface UserType {
-  _id?: ObjectId
-  name: string
-  email: string
-  birthDate: Date
-  password: string
-  createdAt?: Date
-  updatedAt?: Date
-  verifyEmailToken?: string
-  forgotPasswordToken?: string
-  verify?: UserVerifyStatus
+const objectIdSchema = z.instanceof(ObjectId).optional()
 
-  bio?: string
-  location?: string
-  website?: string
-  username?: string
-  avatar?: string
-  coverPhoto?: string
+export const User = z.object({
+  _id: objectIdSchema,
+  name: z.string().min(1, 'Name is required'),
+  email: z.string().email('Invalid email format'),
+  birthDate: z.date().default(new Date()),
+  password: z.string().min(6, 'Password must be at least 6 characters'),
+  createdAt: z.date().default(new Date()),
+  updatedAt: z.date().default(new Date()),
+  verifyEmailToken: z.string().optional().default(''),
+  forgotPasswordToken: z.string().optional().default(''),
+  verify: z.nativeEnum(UserVerifyStatus).default(UserVerifyStatus.Unverified),
 
-  _destroy: boolean
-}
+  bio: z.string().optional().default(''),
+  location: z.string().optional().default(''),
+  website: z.string().optional().default(''),
+  username: z.string().optional().default(''),
+  avatar: z.string().optional().default(''),
+  coverPhoto: z.string().optional().default(''),
 
-export default class User {
-  _id?: ObjectId
-  name: string
-  email: string
-  birthDate: Date
-  password: string
-  createdAt: Date
-  updatedAt: Date
-  verifyEmailToken: string
-  forgotPasswordToken: string
-  verify: UserVerifyStatus
+  _destroy: z.boolean().default(false)
+})
 
-  bio: string
-  location: string
-  website: string
-  username: string
-  avatar: string
-  coverPhoto: string
-
-  _destroy: boolean
-
-  constructor(user: UserType) {
-    this._id = user._id
-    this.name = user.name || ''
-    this.email = user.email
-    this.birthDate = user.birthDate || new Date()
-    this.password = user.password
-    this.createdAt = user.createdAt || new Date()
-    this.updatedAt = user.updatedAt || new Date()
-    this.verifyEmailToken = user.verifyEmailToken || ''
-    this.forgotPasswordToken = user.forgotPasswordToken || ''
-    this.verify = user.verify || UserVerifyStatus.Unverified
-
-    this.bio = user.bio || ''
-    this.location = user.location || ''
-    this.website = user.website || ''
-    this.username = user.username || ''
-    this.avatar = user.avatar || ''
-    this.coverPhoto = user.coverPhoto || ''
-
-    this._destroy = user._destroy || false
-  }
-}
+export type UserType = z.infer<typeof User>

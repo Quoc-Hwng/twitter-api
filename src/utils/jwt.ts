@@ -1,6 +1,6 @@
 import jwt, { SignOptions } from 'jsonwebtoken'
 import { TokenPayload } from '~/constants/constants'
-import { UnauthorizedError, InternalServerError } from '~/utils/errors'
+import { UnauthorizedError, InternalServerError, GoneError } from '~/utils/errors'
 
 export const signToken = ({
   payload,
@@ -29,7 +29,7 @@ export const verifyToken = ({ token, secretOrPublicKey }: { token: string; secre
     jwt.verify(token, secretOrPublicKey, (error, decoded) => {
       if (error) {
         if (error.name === 'TokenExpiredError') {
-          return reject(new UnauthorizedError('Token expired'))
+          return reject(new GoneError('Token expired'))
         }
         if (error.name === 'JsonWebTokenError') {
           return reject(new UnauthorizedError('Invalid token'))

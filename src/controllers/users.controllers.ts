@@ -6,6 +6,7 @@ import {
   GetMeRes,
   LoginBodyType,
   LoginRes,
+  LogoutBodyType,
   PasswordResetBodyType,
   PasswordResetTokenBodyType,
   RefreshTokenBodyType,
@@ -13,13 +14,14 @@ import {
   RegisterBodyType,
   RegisterRes,
   ReSendVerifyEmailRes,
+  UpdateMeBodyType,
+  UpdateMeRes,
   VerifyEmailBodyType,
   VerifyEmailRes,
   VerifyPasswordResetBodyType,
   VerifyPasswordResetRes
 } from '~/schemaValidations/auth.schema'
 import usersService from '~/services/users.services'
-import { UnauthorizedError, ValidationError } from '~/utils/errors'
 
 export const loginController = async (req: Request, res: Response, next: NextFunction) => {
   try {
@@ -37,12 +39,6 @@ export const loginController = async (req: Request, res: Response, next: NextFun
 export const registerController = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const data: RegisterBodyType = req.body
-    const existingUser = await usersService.findUserByEmail(data.email)
-    if (existingUser) {
-      throw new ValidationError(USERS_MESSAGES.VALIDATION_FAILED, [
-        { path: 'email', message: USERS_MESSAGES.EMAIL_ALREADY_EXISTS }
-      ])
-    }
     const result = await usersService.register(data)
     const validatedResponse = RegisterRes.parse({
       message: USERS_MESSAGES.REGISTER_SUCCESS,
@@ -57,11 +53,8 @@ export const registerController = async (req: Request, res: Response, next: Next
 export const logoutController = async (req: Request, res: Response, next: NextFunction) => {
   try {
     Authorization(req)
-    const { refreshToken } = req.body
-    if (!refreshToken) {
-      throw new UnauthorizedError('Refresh token is required')
-    }
-    await usersService.logout(refreshToken)
+    const data: LogoutBodyType = req.body
+    await usersService.logout(data.refreshToken)
     res.status(HTTP_STATUS.OK).json({
       status: 'success',
       message: USERS_MESSAGES.LOGOUT_SUCCESS
@@ -153,6 +146,22 @@ export const getMeController = async (req: Request, res: Response, next: NextFun
     const result = await usersService.getMe(accessToken)
     const validatedResponse = GetMeRes.parse({
       message: USERS_MESSAGES.GET_ME_SUCCESS,
+      data: result
+    })
+    res.status(200).json(validatedResponse)
+  } catch (error) {
+    next(error)
+  }
+}
+
+export const updateMeController = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    console.log('a')
+    const accessToken = Authorization(req)
+    const data: UpdateMeBodyType = req.body
+    const result = await usersService.updateMe(accessToken, data)
+    const validatedResponse = UpdateMeRes.parse({
+      message: USERS_MESSAGES.UPDATE_ME_SUCCESS,
       data: result
     })
     res.status(200).json(validatedResponse)

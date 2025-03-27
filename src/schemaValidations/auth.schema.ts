@@ -1,3 +1,4 @@
+import { verify } from 'crypto'
 import { z } from 'zod'
 
 // ✅ Schema cho password phức tạp
@@ -210,3 +211,36 @@ export const GetMeRes = z.object({
 })
 
 export type GetMeResType = z.TypeOf<typeof GetMeRes>
+
+export const UpdateMeBody = z.object({
+  name: z.string().min(1).max(50).optional(),
+  bio: z.string().max(160).optional(),
+  location: z.string().max(100).optional(),
+  website: z.string().url().optional(),
+  username: z.string().min(3).max(30).optional(),
+  avatar: z.string().optional(),
+  coverPhoto: z.string().optional(),
+  birthDate: z.date().optional()
+})
+
+export type UpdateMeBodyType = z.infer<typeof UpdateMeBody>
+
+export const UpdateMeRes = z.object({
+  message: z.string(),
+  data: z.object({
+    id: z.string(),
+    name: z.string(),
+    email: z.string(),
+    avatar: z.string().nullable(),
+    birthDate: z.string(),
+    coverPhoto: z.string(),
+    username: z.string(),
+    bio: z.string(),
+    location: z.string(),
+    website: z.string(),
+    createdAt: z.string(),
+    updatedAt: z.string()
+  })
+})
+
+export type UpdateMeResType = z.TypeOf<typeof UpdateMeRes>

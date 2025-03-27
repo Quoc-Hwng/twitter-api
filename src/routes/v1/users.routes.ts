@@ -8,10 +8,12 @@ import {
   refreshTokenController,
   registerController,
   reSendVerifyEmailController,
+  updateMeController,
   verifyEmailController,
   verifyForgotPasswordController
 } from '~/controllers/users.controllers'
 import validate from '~/middlewares/validate.middleware'
+import { isVerifiedUser } from '~/middlewares/verifyUser.middleware'
 import {
   LoginBody,
   LogoutBody,
@@ -19,6 +21,7 @@ import {
   PasswordResetTokenBody,
   RefreshTokenBody,
   RegisterBody,
+  UpdateMeBody,
   VerifyEmailBody,
   VerifyPasswordResetBody
 } from '~/schemaValidations/auth.schema'
@@ -35,3 +38,4 @@ usersRouter.post('/forgot-password', validate(PasswordResetTokenBody), forgotPas
 usersRouter.post('/verify-forgot-password', validate(VerifyPasswordResetBody), verifyForgotPasswordController)
 usersRouter.post('/password-reset', validate(PasswordResetBody), passwordResetController)
 usersRouter.get('/me', getMeController)
+usersRouter.patch('/me', validate(UpdateMeBody), isVerifiedUser, updateMeController)

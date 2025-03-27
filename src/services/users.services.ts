@@ -1,22 +1,28 @@
 import databaseConfig from '~/config/database.config'
-import User from '~/models/schemas/User.schema'
-import { LoginBodyType, PasswordResetBodyType, RegisterBodyType } from '../schemaValidations/auth.schema'
+import {
+  LoginBodyType,
+  PasswordResetBodyType,
+  RegisterBodyType,
+  UpdateMeBodyType
+} from '../schemaValidations/auth.schema'
 import { compareValue, hashValue } from '~/utils/bcrypt'
 import { getExpiresIn, signToken, verifyToken } from '~/utils/jwt'
 import { TokenType, UserVerifyStatus } from '~/constants/enum'
 import { environment } from '~/config/env.config'
 import { ObjectId } from 'mongodb'
-import { NotFoundError, ValidationError } from '~/utils/errors'
+import { ConflictError, ForbiddenError, NotFoundError, UnauthorizedError, ValidationError } from '~/utils/errors'
 import RefreshToken from '~/models/schemas/RefreshToken.schema'
 import { USERS_MESSAGES } from '~/constants/messages'
 import { v4 as uuidv4 } from 'uuid'
+import { User } from '~/models/schemas/User.schema'
 
 class UsersService {
-  private signAccessToken({ userId, jti }: { userId: string; jti: string }) {
+  private signAccessToken({ userId, jti, verify }: { userId: string; jti: string; verify: UserVerifyStatus }) {
     return signToken({
       payload: {
         userId,
         jti,
+        verify,
         token_type: TokenType.AccessToken
       },
       privateKey: environment.ACCESS_TOKEN_SECRET_SIGNATURE,
@@ -25,12 +31,23 @@ class UsersService {
       }
     })
   }
-  private signRefreshToken({ userId, jti, exp }: { userId: string; jti: string; exp?: number }) {
+  private signRefreshToken({
+    userId,
+    jti,
+    verify,
+    exp
+  }: {
+    userId: string
+    jti: string
+    exp?: number
+    verify: UserVerifyStatus
+  }) {
     if (exp) {
       return signToken({
         payload: {
           userId,
           jti,
+          verify,
           token_type: TokenType.RefreshToken,
           exp
         },
@@ -41,6 +58,7 @@ class UsersService {
       payload: {
         userId,
         jti,
+        verify,
         token_type: TokenType.RefreshToken
       },
       privateKey: environment.REFRESH_TOKEN_SECRET_SIGNATURE,
@@ -76,8 +94,16 @@ class UsersService {
     })
   }
 
-  private signAccessAndRefreshToken({ userId, jti }: { userId: string; jti: string }) {
-    return Promise.all([this.signAccessToken({ userId, jti }), this.signRefreshToken({ userId, jti })])
+  private signAccessAndRefreshToken({
+    userId,
+    jti,
+    verify
+  }: {
+    userId: string
+    jti: string
+    verify: UserVerifyStatus
+  }) {
+    return Promise.all([this.signAccessToken({ userId, jti, verify }), this.signRefreshToken({ userId, jti, verify })])
   }
   private decodeAccessToken(accessToken: string) {
     return verifyToken({
@@ -105,17 +131,21 @@ class UsersService {
   }
 
   async register(data: RegisterBodyType) {
+    const existingUser = await usersService.findUserByEmail(data.email)
+    if (existingUser) {
+      throw new ConflictError(USERS_MESSAGES.EMAIL_ALREADY_EXISTS)
+    }
     const hashedPassword = await hashValue(data.password)
     const emailVerifyToken = uuidv4()
-    const result = await databaseConfig.users.insertOne(
-      new User({
-        ...data,
-        password: hashedPassword,
-        verifyEmailToken: emailVerifyToken,
-        birthDate: new Date(data.birthDate),
-        _destroy: false
-      })
-    )
+    const dataValidate = User.parse({
+      ...data,
+      password: hashedPassword,
+      verifyEmailToken: emailVerifyToken,
+      birthDate: new Date(data.birthDate),
+      _destroy: false
+    })
+    const result = await databaseConfig.users.insertOne(dataValidate)
+
     const userId = result.insertedId.toString()
     const user = await this.findUserById(userId)
     const verifyEmailToken = await this.signEmailVerifyToken({ userId, emailVerifyToken })
@@ -123,7 +153,8 @@ class UsersService {
 
     const [accessToken, refreshToken] = await this.signAccessAndRefreshToken({
       userId,
-      jti: emailVerifyToken
+      jti: emailVerifyToken,
+      verify: UserVerifyStatus.Unverified
     })
     const { iat, exp } = await this.decodeRefreshToken(refreshToken)
     await databaseConfig.refreshTokens.insertOne(
@@ -153,15 +184,11 @@ class UsersService {
     //Validate email, password
     const user = await this.findUserByEmail(data.email)
     if (!user) {
-      throw new ValidationError(USERS_MESSAGES.VALIDATION_FAILED, [
-        { path: 'email', message: USERS_MESSAGES.INVALID_EMAIL_OR_PASSWORD }
-      ])
+      throw new UnauthorizedError(USERS_MESSAGES.INVALID_EMAIL_OR_PASSWORD)
     }
     const isMatchPassword = await compareValue(data.password, user.password)
     if (!isMatchPassword) {
-      throw new ValidationError(USERS_MESSAGES.VALIDATION_FAILED, [
-        { path: 'password', message: USERS_MESSAGES.INVALID_EMAIL_OR_PASSWORD }
-      ])
+      throw new UnauthorizedError(USERS_MESSAGES.INVALID_EMAIL_OR_PASSWORD)
     }
 
     //Logic login
@@ -169,7 +196,8 @@ class UsersService {
     const jti = uuidv4()
     const [accessToken, refreshToken] = await this.signAccessAndRefreshToken({
       userId,
-      jti
+      jti,
+      verify: user.verify
     })
     const { iat, exp } = await this.decodeRefreshToken(refreshToken)
     await databaseConfig.refreshTokens.insertOne(new RefreshToken({ userId: user._id, token: jti, iat, exp }))
@@ -189,17 +217,23 @@ class UsersService {
   async refreshToken({ refreshToken }: { refreshToken: string }) {
     const { userId, jti: oldJti } = await this.decodeRefreshToken(refreshToken)
     if (!userId || !oldJti) {
-      throw new Error('Invalid refresh token')
+      throw new UnauthorizedError(USERS_MESSAGES.REFRESH_TOKEN_IS_INVALID)
+    }
+    const user = await this.findUserById(userId)
+    if (!user) {
+      throw new NotFoundError(USERS_MESSAGES.USER_NOT_FOUND)
     }
     const newJti = uuidv4()
     const [newAccessToken, newRefreshToken] = await Promise.all([
       this.signAccessToken({
         userId,
-        jti: newJti
+        jti: newJti,
+        verify: user.verify
       }),
       this.signRefreshToken({
         userId,
-        jti: newJti
+        jti: newJti,
+        verify: user.verify
       }),
       databaseConfig.refreshTokens.deleteOne({ token: oldJti })
     ])
@@ -236,9 +270,7 @@ class UsersService {
       ])
     }
     if (user.verify === UserVerifyStatus.Verified) {
-      throw new ValidationError(USERS_MESSAGES.VALIDATION_FAILED, [
-        { path: 'token', message: USERS_MESSAGES.YOUR_ACCOUNT_IS_ALREADY_ACTIVE }
-      ])
+      throw new ForbiddenError(USERS_MESSAGES.YOUR_ACCOUNT_IS_ALREADY_ACTIVE)
     }
     await databaseConfig.users.updateOne(
       { _id: new ObjectId(userId) },
@@ -265,17 +297,20 @@ class UsersService {
     if (user.verify === UserVerifyStatus.Verified) {
       return USERS_MESSAGES.YOUR_ACCOUNT_IS_ALREADY_ACTIVE
     }
+    const emailVerifyToken = uuidv4()
     await databaseConfig.users.updateOne(
       { _id: new ObjectId(userId) },
       {
         $set: {
-          verifyEmailToken: uuidv4()
+          verifyEmailToken: emailVerifyToken
         },
         $currentDate: {
           updatedAt: true
         }
       }
     )
+    const verifyEmailToken = await this.signEmailVerifyToken({ userId, emailVerifyToken })
+    console.log(verifyEmailToken)
     return USERS_MESSAGES.RESEND_VERIFY_EMAIL_SUCCESS
   }
 
@@ -365,6 +400,38 @@ class UsersService {
       verify: user?.verify.toString(),
       createdAt: user?.createdAt?.toISOString(),
       updatedAt: user?.updatedAt?.toISOString()
+    }
+  }
+
+  async updateMe(token: string, data: UpdateMeBodyType) {
+    const { userId } = await this.decodeAccessToken(token)
+    const user = await databaseConfig.users.findOneAndUpdate(
+      { _id: new ObjectId(userId) },
+      {
+        $set: {
+          ...data
+        },
+        $currentDate: {
+          updatedAt: true
+        }
+      },
+      {
+        returnDocument: 'after',
+        projection: {
+          password: 0,
+          forgotPasswordToken: 0,
+          verifyEmailToken: 0,
+          verify: 0,
+          _destroy: 0
+        }
+      }
+    )
+    return {
+      ...user,
+      id: user?._id.toString(),
+      birthDate: user?.birthDate.toISOString(),
+      createdAt: user?.createdAt.toISOString(),
+      updatedAt: user?.updatedAt.toISOString()
     }
   }
 }
