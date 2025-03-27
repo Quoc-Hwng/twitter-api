@@ -112,7 +112,7 @@ class UsersService {
         ...data,
         password: hashedPassword,
         verifyEmailToken: emailVerifyToken,
-        date_of_birth: new Date(data.date_of_birth),
+        birthDate: new Date(data.birthDate),
         _destroy: false
       })
     )
@@ -136,8 +136,7 @@ class UsersService {
         id: userId,
         email: user?.email,
         name: user?.name,
-        avatar: user?.avatar,
-        date_of_birth: user?.date_of_birth.toISOString()
+        avatar: user?.avatar
       }
     }
   }
@@ -181,8 +180,7 @@ class UsersService {
         id: userId,
         email: user.email,
         name: user.name,
-        avatar: user.avatar,
-        date_of_birth: user.date_of_birth.toISOString()
+        avatar: user.avatar
       }
     }
   }
@@ -345,6 +343,29 @@ class UsersService {
     await databaseConfig.refreshTokens.deleteMany({ userId: new ObjectId(userId) })
 
     return USERS_MESSAGES.RESET_PASSWORD_SUCCESS
+  }
+
+  async getMe(token: string) {
+    const { userId } = await this.decodeAccessToken(token)
+    const user = await this.findUserById(userId)
+    if (!user) {
+      throw new NotFoundError(USERS_MESSAGES.USER_NOT_FOUND)
+    }
+    return {
+      id: userId,
+      email: user?.email,
+      name: user?.name,
+      avatar: user?.avatar,
+      birthDate: user?.birthDate.toISOString(),
+      bio: user?.bio,
+      location: user?.location,
+      website: user?.website,
+      username: user?.username,
+      coverPhoto: user?.coverPhoto,
+      verify: user?.verify.toString(),
+      createdAt: user?.createdAt?.toISOString(),
+      updatedAt: user?.updatedAt?.toISOString()
+    }
   }
 }
 

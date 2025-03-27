@@ -24,8 +24,8 @@ export const RegisterBody = z
     // ✅ confirmPassword phải khớp với password
     confirmPassword: passwordSchema,
 
-    // ✅ date_of_birth phải là định dạng ISO8601
-    date_of_birth: z.string().refine((value) => !isNaN(Date.parse(value)), 'Invalid date format (ISO8601 expected)')
+    // ✅ birthDate phải là định dạng ISO8601
+    birthDate: z.string().refine((value) => !isNaN(Date.parse(value)), 'Invalid date format (ISO8601 expected)')
   })
   .refine((data) => data.password === data.confirmPassword, {
     path: ['confirmPassword'],
@@ -43,8 +43,7 @@ export const RegisterRes = z.object({
       id: z.string(),
       name: z.string(),
       email: z.string(),
-      avatar: z.string().nullable(),
-      date_of_birth: z.string()
+      avatar: z.string().nullable()
     })
   })
 })
@@ -71,8 +70,7 @@ export const LoginRes = z.object({
       id: z.string(),
       name: z.string(),
       email: z.string(),
-      avatar: z.string().nullable(),
-      date_of_birth: z.string()
+      avatar: z.string().nullable()
     })
   }),
   message: z.string()
@@ -191,3 +189,24 @@ export const PasswordResetRes = z.object({
 })
 
 export type PasswordResetResType = z.TypeOf<typeof PasswordResetRes>
+
+export const GetMeRes = z.object({
+  message: z.string(),
+  data: z.object({
+    id: z.string(),
+    name: z.string(),
+    email: z.string(),
+    avatar: z.string().nullable(),
+    birthDate: z.string(),
+    bio: z.string(),
+    location: z.string(),
+    website: z.string(),
+    username: z.string(),
+    coverPhoto: z.string(),
+    verify: z.string(),
+    createdAt: z.string(),
+    updatedAt: z.string()
+  })
+})
+
+export type GetMeResType = z.TypeOf<typeof GetMeRes>

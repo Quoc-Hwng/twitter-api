@@ -1,9 +1,9 @@
 import { NextFunction, Request, Response } from 'express'
-import { environment } from '~/config/env.config'
 import { HTTP_STATUS } from '~/config/http.config'
 import { Authorization } from '~/constants/algorithms'
 import { USERS_MESSAGES } from '~/constants/messages'
 import {
+  GetMeRes,
   LoginBodyType,
   LoginRes,
   PasswordResetBodyType,
@@ -141,6 +141,19 @@ export const passwordResetController = async (req: Request, res: Response, next:
     const result = await usersService.passwordReset(data)
     const validatedResponse = VerifyPasswordResetRes.parse({
       message: result
+    })
+    res.status(200).json(validatedResponse)
+  } catch (error) {
+    next(error)
+  }
+}
+export const getMeController = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const accessToken = Authorization(req)
+    const result = await usersService.getMe(accessToken)
+    const validatedResponse = GetMeRes.parse({
+      message: USERS_MESSAGES.GET_ME_SUCCESS,
+      data: result
     })
     res.status(200).json(validatedResponse)
   } catch (error) {

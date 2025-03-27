@@ -5,7 +5,7 @@ interface UserType {
   _id?: ObjectId
   name: string
   email: string
-  date_of_birth: Date
+  birthDate: Date
   password: string
   createdAt?: Date
   updatedAt?: Date
@@ -27,7 +27,7 @@ export default class User {
   _id?: ObjectId
   name: string
   email: string
-  date_of_birth: Date
+  birthDate: Date
   password: string
   createdAt: Date
   updatedAt: Date
@@ -48,7 +48,7 @@ export default class User {
     this._id = user._id
     this.name = user.name || ''
     this.email = user.email
-    this.date_of_birth = user.date_of_birth || new Date()
+    this.birthDate = user.birthDate || new Date()
     this.password = user.password
     this.createdAt = user.createdAt || new Date()
     this.updatedAt = user.updatedAt || new Date()
