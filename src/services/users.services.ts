@@ -99,6 +99,12 @@ class UsersService {
       secretOrPublicKey: environment.EMAIL_VERIFY_TOKEN_SECRET_SIGNATURE
     })
   }
+  private decodePasswordResetToken(verifyForgotPasswordToken: string) {
+    return verifyToken({
+      token: verifyForgotPasswordToken,
+      secretOrPublicKey: environment.FORGOT_PASSWORD_TOKEN_SECRET_SIGNATURE
+    })
+  }
 
   async register(data: RegisterBodyType) {
     const hashedPassword = await hashValue(data.password)
@@ -299,6 +305,19 @@ class UsersService {
     const Token = await this.signPasswordResetToken({ userId, passwordResetToken })
     console.log(Token)
     return USERS_MESSAGES.CHECK_EMAIL_TO_RESET_PASSWORD
+  }
+  async verifyForgotPassword(token: string) {
+    const { userId, passwordResetToken } = await this.decodePasswordResetToken(token)
+    const user = await this.findUserById(userId)
+    if (!user) {
+      throw new NotFoundError(USERS_MESSAGES.USER_NOT_FOUND)
+    }
+    if (user.forgotPasswordToken !== passwordResetToken) {
+      throw new ValidationError(USERS_MESSAGES.VALIDATION_FAILED, [
+        { path: 'token', message: USERS_MESSAGES.FORGOT_PASSWORD_TOKEN_IS_REQUIRED }
+      ])
+    }
+    return USERS_MESSAGES.VERIFY_FORGOT_PASSWORD_SUCCESS
   }
 }
 

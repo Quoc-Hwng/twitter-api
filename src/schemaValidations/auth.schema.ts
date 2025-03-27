@@ -148,3 +148,22 @@ export const PasswordResetTokenRes = z.object({
 })
 
 export type PasswordResetTokenType = z.TypeOf<typeof PasswordResetTokenRes>
+
+export const VerifyPasswordResetBody = z
+  .object({
+    verifyToken: z
+      .string({
+        required_error: 'Token is required',
+        invalid_type_error: 'Token must be a string'
+      })
+      .min(1, 'Token cannot be empty')
+  })
+  .strict()
+
+export type VerifyPasswordResetBodyType = z.TypeOf<typeof VerifyPasswordResetBody>
+
+export const VerifyPasswordResetRes = z.object({
+  message: z.string()
+})
+
+export type VerifyPasswordResetResType = z.TypeOf<typeof VerifyPasswordResetRes>

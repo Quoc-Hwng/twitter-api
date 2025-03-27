@@ -1,6 +1,7 @@
 import { NextFunction, Request, Response } from 'express'
 import { environment } from '~/config/env.config'
 import { HTTP_STATUS } from '~/config/http.config'
+import { Authorization } from '~/constants/algorithms'
 import { USERS_MESSAGES } from '~/constants/messages'
 import {
   LoginBodyType,
@@ -12,7 +13,9 @@ import {
   RegisterRes,
   ReSendVerifyEmailRes,
   VerifyEmailBodyType,
-  VerifyEmailRes
+  VerifyEmailRes,
+  VerifyPasswordResetBodyType,
+  VerifyPasswordResetRes
 } from '~/schemaValidations/auth.schema'
 import usersService from '~/services/users.services'
 import { UnauthorizedError, ValidationError } from '~/utils/errors'
@@ -52,22 +55,8 @@ export const registerController = async (req: Request, res: Response, next: Next
 
 export const logoutController = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const authHeader = req.headers.authorization
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      throw new UnauthorizedError('Unauthorized: No token provided')
-    }
-
-    const accessToken = req.headers.authorization?.split(' ')[1]
-    if (!accessToken) {
-      throw new ValidationError(USERS_MESSAGES.VALIDATION_FAILED, [
-        { path: 'accessToken', message: 'Access token is required' }
-      ])
-    }
-    // if (!decoded) {
-    //   throw new UnauthorizedError('Unauthorized: Invalid token')
-    // }
+    Authorization(req)
     const { refreshToken } = req.body
-    // const decoded = verifyToken({ token: refreshToken, secretOrPublicKey: environment.ACCESS_TOKEN_SECRET_SIGNATURE })
     if (!refreshToken) {
       throw new UnauthorizedError('Refresh token is required')
     }
@@ -108,19 +97,7 @@ export const verifyEmailController = async (req: Request, res: Response, next: N
 }
 export const reSendVerifyEmailController = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const authHeader = req.headers.authorization
-    console.log('AccessToken', authHeader)
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      throw new UnauthorizedError('Unauthorized: No token provided')
-    }
-
-    const accessToken = req.headers.authorization?.split(' ')[1]
-    if (!accessToken) {
-      throw new ValidationError(USERS_MESSAGES.VALIDATION_FAILED, [
-        { path: 'accessToken', message: 'Access token is required' }
-      ])
-    }
-
+    const accessToken = Authorization(req)
     const result = await usersService.reSendVerifyEmail(accessToken)
     const validatedResponse = ReSendVerifyEmailRes.parse({
       message: result
@@ -136,6 +113,19 @@ export const forgotPasswordController = async (req: Request, res: Response, next
     const data: PasswordResetTokenBodyType = req.body
     const result = await usersService.forgotPassword(data.email)
     const validatedResponse = ReSendVerifyEmailRes.parse({
+      message: result
+    })
+    res.status(200).json(validatedResponse)
+  } catch (error) {
+    next(error)
+  }
+}
+
+export const verifyForgotPasswordController = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const data: VerifyPasswordResetBodyType = req.body
+    const result = await usersService.verifyForgotPassword(data.verifyToken)
+    const validatedResponse = VerifyPasswordResetRes.parse({
       message: result
     })
     res.status(200).json(validatedResponse)

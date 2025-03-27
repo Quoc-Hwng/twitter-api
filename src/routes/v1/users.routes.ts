@@ -6,7 +6,8 @@ import {
   refreshTokenController,
   registerController,
   reSendVerifyEmailController,
-  verifyEmailController
+  verifyEmailController,
+  verifyForgotPasswordController
 } from '~/controllers/users.controllers'
 import validate from '~/middlewares/validate.middleware'
 import {
@@ -15,7 +16,8 @@ import {
   PasswordResetTokenBody,
   RefreshTokenBody,
   RegisterBody,
-  VerifyEmailBody
+  VerifyEmailBody,
+  VerifyPasswordResetBody
 } from '~/schemaValidations/auth.schema'
 
 export const usersRouter = Router()
@@ -27,3 +29,4 @@ usersRouter.post('/refresh-token', validate(RefreshTokenBody), refreshTokenContr
 usersRouter.post('/verify-email', validate(VerifyEmailBody), verifyEmailController)
 usersRouter.post('/resend-verify-email', reSendVerifyEmailController)
 usersRouter.post('/forgot-password', validate(PasswordResetTokenBody), forgotPasswordController)
+usersRouter.post('/verify-forgot-password', validate(VerifyPasswordResetBody), verifyForgotPasswordController)
