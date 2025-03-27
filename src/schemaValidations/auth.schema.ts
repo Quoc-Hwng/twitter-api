@@ -167,3 +167,27 @@ export const VerifyPasswordResetRes = z.object({
 })
 
 export type VerifyPasswordResetResType = z.TypeOf<typeof VerifyPasswordResetRes>
+
+export const PasswordResetBody = z
+  .object({
+    verifyToken: z
+      .string({
+        required_error: 'Token is required',
+        invalid_type_error: 'Token must be a string'
+      })
+      .min(1, 'Token cannot be empty'),
+    password: passwordSchema,
+    confirmPassword: passwordSchema
+  })
+  .refine((data) => data.password === data.confirmPassword, {
+    path: ['confirmPassword'],
+    message: 'Passwords do not match'
+  })
+
+export type PasswordResetBodyType = z.TypeOf<typeof PasswordResetBody>
+
+export const PasswordResetRes = z.object({
+  message: z.string()
+})
+
+export type PasswordResetResType = z.TypeOf<typeof PasswordResetRes>

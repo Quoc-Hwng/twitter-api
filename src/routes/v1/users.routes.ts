@@ -3,6 +3,7 @@ import {
   forgotPasswordController,
   loginController,
   logoutController,
+  passwordResetController,
   refreshTokenController,
   registerController,
   reSendVerifyEmailController,
@@ -13,6 +14,7 @@ import validate from '~/middlewares/validate.middleware'
 import {
   LoginBody,
   LogoutBody,
+  PasswordResetBody,
   PasswordResetTokenBody,
   RefreshTokenBody,
   RegisterBody,
@@ -30,3 +32,4 @@ usersRouter.post('/verify-email', validate(VerifyEmailBody), verifyEmailControll
 usersRouter.post('/resend-verify-email', reSendVerifyEmailController)
 usersRouter.post('/forgot-password', validate(PasswordResetTokenBody), forgotPasswordController)
 usersRouter.post('/verify-forgot-password', validate(VerifyPasswordResetBody), verifyForgotPasswordController)
+usersRouter.post('/password-reset', validate(PasswordResetBody), passwordResetController)

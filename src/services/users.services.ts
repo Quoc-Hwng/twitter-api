@@ -1,6 +1,6 @@
 import databaseConfig from '~/config/database.config'
 import User from '~/models/schemas/User.schema'
-import { LoginBodyType, RegisterBodyType } from '../schemaValidations/auth.schema'
+import { LoginBodyType, PasswordResetBodyType, RegisterBodyType } from '../schemaValidations/auth.schema'
 import { compareValue, hashValue } from '~/utils/bcrypt'
 import { getExpiresIn, signToken, verifyToken } from '~/utils/jwt'
 import { TokenType, UserVerifyStatus } from '~/constants/enum'
@@ -10,8 +10,6 @@ import { NotFoundError, ValidationError } from '~/utils/errors'
 import RefreshToken from '~/models/schemas/RefreshToken.schema'
 import { USERS_MESSAGES } from '~/constants/messages'
 import { v4 as uuidv4 } from 'uuid'
-import crypto from 'crypto'
-import bcrypt from 'bcrypt'
 
 class UsersService {
   private signAccessToken({ userId, jti }: { userId: string; jti: string }) {
@@ -55,7 +53,7 @@ class UsersService {
     return signToken({
       payload: {
         userId,
-        emailVerifyToken,
+        jti: emailVerifyToken,
         token_type: TokenType.EmailVerifyToken
       },
       privateKey: environment.EMAIL_VERIFY_TOKEN_SECRET_SIGNATURE,
@@ -68,7 +66,7 @@ class UsersService {
     return signToken({
       payload: {
         userId,
-        passwordResetToken,
+        jti: passwordResetToken,
         token_type: TokenType.ForgotPasswordToken
       },
       privateKey: environment.FORGOT_PASSWORD_TOKEN_SECRET_SIGNATURE,
@@ -229,7 +227,7 @@ class UsersService {
 
   //Verify Account
   async verifyEmail(token: string) {
-    const { userId, emailVerifyToken } = await this.decodeEmailVerifyToken(token)
+    const { userId, jti: emailVerifyToken } = await this.decodeEmailVerifyToken(token)
     const user = await this.findUserById(userId)
     if (!user) {
       throw new NotFoundError(USERS_MESSAGES.USER_NOT_FOUND)
@@ -307,7 +305,7 @@ class UsersService {
     return USERS_MESSAGES.CHECK_EMAIL_TO_RESET_PASSWORD
   }
   async verifyForgotPassword(token: string) {
-    const { userId, passwordResetToken } = await this.decodePasswordResetToken(token)
+    const { userId, jti: passwordResetToken } = await this.decodePasswordResetToken(token)
     const user = await this.findUserById(userId)
     if (!user) {
       throw new NotFoundError(USERS_MESSAGES.USER_NOT_FOUND)
@@ -318,6 +316,35 @@ class UsersService {
       ])
     }
     return USERS_MESSAGES.VERIFY_FORGOT_PASSWORD_SUCCESS
+  }
+  async passwordReset(data: PasswordResetBodyType) {
+    const { userId, jti: passwordResetToken } = await this.decodePasswordResetToken(data.verifyToken)
+    const user = await this.findUserById(userId)
+    if (!user) {
+      throw new NotFoundError(USERS_MESSAGES.USER_NOT_FOUND)
+    }
+    if (user.forgotPasswordToken !== passwordResetToken) {
+      throw new ValidationError(USERS_MESSAGES.VALIDATION_FAILED, [
+        { path: 'token', message: USERS_MESSAGES.FORGOT_PASSWORD_TOKEN_IS_REQUIRED }
+      ])
+    }
+    await databaseConfig.users.updateOne(
+      {
+        _id: new ObjectId(userId)
+      },
+      {
+        $set: {
+          password: await hashValue(data.password),
+          forgotPasswordToken: ''
+        },
+        $currentDate: {
+          updatedAt: true
+        }
+      }
+    )
+    await databaseConfig.refreshTokens.deleteMany({ userId: new ObjectId(userId) })
+
+    return USERS_MESSAGES.RESET_PASSWORD_SUCCESS
   }
 }
 
