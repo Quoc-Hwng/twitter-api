@@ -2,6 +2,7 @@ import { Router } from 'express'
 import {
   forgotPasswordController,
   getMeController,
+  getProfileController,
   loginController,
   logoutController,
   passwordResetController,
@@ -15,6 +16,7 @@ import {
 import validate from '~/middlewares/validate.middleware'
 import { isVerifiedUser } from '~/middlewares/verifyUser.middleware'
 import {
+  GetProfileParam,
   LoginBody,
   LogoutBody,
   PasswordResetBody,
@@ -39,3 +41,4 @@ usersRouter.post('/verify-forgot-password', validate(VerifyPasswordResetBody), v
 usersRouter.post('/password-reset', validate(PasswordResetBody), passwordResetController)
 usersRouter.get('/me', getMeController)
 usersRouter.patch('/me', validate(UpdateMeBody), isVerifiedUser, updateMeController)
+usersRouter.get('/:username', validate(GetProfileParam, 'params'), getProfileController)

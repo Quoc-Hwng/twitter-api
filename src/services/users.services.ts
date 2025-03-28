@@ -139,6 +139,7 @@ class UsersService {
     const emailVerifyToken = uuidv4()
     const dataValidate = User.parse({
       ...data,
+      username: emailVerifyToken,
       password: hashedPassword,
       verifyEmailToken: emailVerifyToken,
       birthDate: new Date(data.birthDate),
@@ -432,6 +433,24 @@ class UsersService {
       birthDate: user?.birthDate.toISOString(),
       createdAt: user?.createdAt.toISOString(),
       updatedAt: user?.updatedAt.toISOString()
+    }
+  }
+  async getProfile(username: string) {
+    const user = await databaseConfig.users.findOne({ username })
+    if (!user) {
+      throw new NotFoundError(USERS_MESSAGES.USER_NOT_FOUND)
+    }
+    return {
+      id: user?._id.toString(),
+      email: user?.email,
+      name: user?.name,
+      avatar: user?.avatar,
+      birthDate: user?.birthDate.toISOString(),
+      bio: user?.bio,
+      location: user?.location,
+      website: user?.website,
+      username: user?.username,
+      coverPhoto: user?.coverPhoto
     }
   }
 }

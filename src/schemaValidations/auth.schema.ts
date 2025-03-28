@@ -244,3 +244,27 @@ export const UpdateMeRes = z.object({
 })
 
 export type UpdateMeResType = z.TypeOf<typeof UpdateMeRes>
+
+export const GetProfileParam = z.object({
+  username: z.string()
+})
+
+export type GetProfileParamType = z.TypeOf<typeof GetProfileParam>
+
+export const GetProfileRes = z.object({
+  message: z.string(),
+  data: z.object({
+    id: z.string(),
+    name: z.string(),
+    email: z.string(),
+    avatar: z.string().nullable(),
+    birthDate: z.string(),
+    bio: z.string(),
+    location: z.string(),
+    website: z.string(),
+    username: z.string(),
+    coverPhoto: z.string()
+  })
+})
+
+export type GetProfileResType = z.TypeOf<typeof GetProfileRes>

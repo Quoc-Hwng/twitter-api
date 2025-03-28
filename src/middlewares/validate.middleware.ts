@@ -4,10 +4,11 @@ import { HTTP_STATUS } from '~/config/http.config'
 import { USERS_MESSAGES } from '~/constants/messages'
 
 const validate =
-  <T>(schema: ZodType<T>) =>
+  <T>(schema: ZodType<T>, source: 'body' | 'params' | 'query' = 'body') =>
   (req: Request, res: Response, next: NextFunction) => {
     try {
-      req.body = schema.parse(req.body) as T
+      // req.body = schema.parse(req.body) as T
+      req[source] = schema.parse(req[source]) as T
       next()
     } catch (error) {
       if (error instanceof ZodError) {

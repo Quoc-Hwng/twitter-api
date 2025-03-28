@@ -4,6 +4,8 @@ import { Authorization } from '~/constants/algorithms'
 import { USERS_MESSAGES } from '~/constants/messages'
 import {
   GetMeRes,
+  GetProfileParam,
+  GetProfileParamType,
   LoginBodyType,
   LoginRes,
   LogoutBodyType,
@@ -156,13 +158,26 @@ export const getMeController = async (req: Request, res: Response, next: NextFun
 
 export const updateMeController = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    console.log('a')
     const accessToken = Authorization(req)
     const data: UpdateMeBodyType = req.body
     const result = await usersService.updateMe(accessToken, data)
     const validatedResponse = UpdateMeRes.parse({
       message: USERS_MESSAGES.UPDATE_ME_SUCCESS,
       data: result
+    })
+    res.status(200).json(validatedResponse)
+  } catch (error) {
+    next(error)
+  }
+}
+
+export const getProfileController = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const data = GetProfileParam.parse(req.params)
+    const user = await usersService.getProfile(data.username)
+    const validatedResponse = UpdateMeRes.parse({
+      message: USERS_MESSAGES.GET_PROFILE_SUCCESS,
+      data: user
     })
     res.status(200).json(validatedResponse)
   } catch (error) {
