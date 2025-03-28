@@ -3,9 +3,11 @@ import { HTTP_STATUS } from '~/config/http.config'
 import { Authorization } from '~/constants/algorithms'
 import { USERS_MESSAGES } from '~/constants/messages'
 import {
+  FollowBodyType,
+  FollowRes,
   GetMeRes,
   GetProfileParam,
-  GetProfileParamType,
+  GetProfileRes,
   LoginBodyType,
   LoginRes,
   LogoutBodyType,
@@ -22,7 +24,8 @@ import {
   VerifyEmailRes,
   VerifyPasswordResetBodyType,
   VerifyPasswordResetRes
-} from '~/schemaValidations/auth.schema'
+} from '~/schemaValidations/users.schema'
+import { AuthRequest } from '~/type'
 import usersService from '~/services/users.services'
 
 export const loginController = async (req: Request, res: Response, next: NextFunction) => {
@@ -175,11 +178,26 @@ export const getProfileController = async (req: Request, res: Response, next: Ne
   try {
     const data = GetProfileParam.parse(req.params)
     const user = await usersService.getProfile(data.username)
-    const validatedResponse = UpdateMeRes.parse({
+    const validatedResponse = GetProfileRes.parse({
       message: USERS_MESSAGES.GET_PROFILE_SUCCESS,
       data: user
     })
     res.status(200).json(validatedResponse)
+  } catch (error) {
+    next(error)
+  }
+}
+
+export const followController = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const userId = req.userId
+    const data: FollowBodyType = req.body
+    const result = await usersService.followUser(data.targetUserId, userId!)
+    const validatedResponse = FollowRes.parse({
+      message: USERS_MESSAGES.FOLLOW_SUCCESS,
+      followStatus: result
+    })
+    res.json(validatedResponse)
   } catch (error) {
     next(error)
   }

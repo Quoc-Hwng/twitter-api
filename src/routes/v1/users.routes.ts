@@ -1,5 +1,6 @@
 import { Router } from 'express'
 import {
+  followController,
   forgotPasswordController,
   getMeController,
   getProfileController,
@@ -16,6 +17,7 @@ import {
 import validate from '~/middlewares/validate.middleware'
 import { isVerifiedUser } from '~/middlewares/verifyUser.middleware'
 import {
+  FollowBody,
   GetProfileParam,
   LoginBody,
   LogoutBody,
@@ -26,7 +28,7 @@ import {
   UpdateMeBody,
   VerifyEmailBody,
   VerifyPasswordResetBody
-} from '~/schemaValidations/auth.schema'
+} from '~/schemaValidations/users.schema'
 
 export const usersRouter = Router()
 
@@ -42,3 +44,4 @@ usersRouter.post('/password-reset', validate(PasswordResetBody), passwordResetCo
 usersRouter.get('/me', getMeController)
 usersRouter.patch('/me', validate(UpdateMeBody), isVerifiedUser, updateMeController)
 usersRouter.get('/:username', validate(GetProfileParam, 'params'), getProfileController)
+usersRouter.post('/follow', validate(FollowBody), isVerifiedUser, followController)

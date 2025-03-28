@@ -4,17 +4,18 @@ import {
   PasswordResetBodyType,
   RegisterBodyType,
   UpdateMeBodyType
-} from '../schemaValidations/auth.schema'
+} from '../schemaValidations/users.schema'
 import { compareValue, hashValue } from '~/utils/bcrypt'
 import { getExpiresIn, signToken, verifyToken } from '~/utils/jwt'
 import { TokenType, UserVerifyStatus } from '~/constants/enum'
 import { environment } from '~/config/env.config'
 import { ObjectId } from 'mongodb'
 import { ConflictError, ForbiddenError, NotFoundError, UnauthorizedError, ValidationError } from '~/utils/errors'
-import RefreshToken from '~/models/schemas/RefreshToken.schema'
 import { USERS_MESSAGES } from '~/constants/messages'
 import { v4 as uuidv4 } from 'uuid'
 import { User } from '~/models/schemas/User.schema'
+import { RefreshToken } from '~/models/schemas/RefreshToken.schema'
+import { FollowerSchema } from '~/models/schemas/Follower.schema'
 
 class UsersService {
   private signAccessToken({ userId, jti, verify }: { userId: string; jti: string; verify: UserVerifyStatus }) {
@@ -158,9 +159,8 @@ class UsersService {
       verify: UserVerifyStatus.Unverified
     })
     const { iat, exp } = await this.decodeRefreshToken(refreshToken)
-    await databaseConfig.refreshTokens.insertOne(
-      new RefreshToken({ userId: new ObjectId(userId), token: emailVerifyToken, iat, exp })
-    )
+    const refreshTokenData = RefreshToken.parse({ userId: new ObjectId(userId), token: emailVerifyToken, iat, exp })
+    await databaseConfig.refreshTokens.insertOne(refreshTokenData)
     return {
       accessToken,
       refreshToken,
@@ -201,7 +201,8 @@ class UsersService {
       verify: user.verify
     })
     const { iat, exp } = await this.decodeRefreshToken(refreshToken)
-    await databaseConfig.refreshTokens.insertOne(new RefreshToken({ userId: user._id, token: jti, iat, exp }))
+    const refreshTokenData = RefreshToken.parse({ userId: user._id, token: jti, iat, exp })
+    await databaseConfig.refreshTokens.insertOne(refreshTokenData)
     return {
       accessToken,
       refreshToken,
@@ -239,9 +240,8 @@ class UsersService {
       databaseConfig.refreshTokens.deleteOne({ token: oldJti })
     ])
     const { iat, exp } = await this.decodeRefreshToken(newRefreshToken)
-    await databaseConfig.refreshTokens.insertOne(
-      new RefreshToken({ userId: new ObjectId(userId), token: newJti, iat, exp })
-    )
+    const refreshTokenData = RefreshToken.parse({ userId: new ObjectId(userId), token: newJti, iat, exp })
+    await databaseConfig.refreshTokens.insertOne(refreshTokenData)
     return {
       accessToken: newAccessToken,
       refreshToken: newRefreshToken
@@ -398,9 +398,7 @@ class UsersService {
       website: user?.website,
       username: user?.username,
       coverPhoto: user?.coverPhoto,
-      verify: user?.verify.toString(),
-      createdAt: user?.createdAt?.toISOString(),
-      updatedAt: user?.updatedAt?.toISOString()
+      verify: user?.verify.toString()
     }
   }
 
@@ -430,9 +428,7 @@ class UsersService {
     return {
       ...user,
       id: user?._id.toString(),
-      birthDate: user?.birthDate.toISOString(),
-      createdAt: user?.createdAt.toISOString(),
-      updatedAt: user?.updatedAt.toISOString()
+      birthDate: user?.birthDate.toISOString()
     }
   }
   async getProfile(username: string) {
@@ -450,8 +446,34 @@ class UsersService {
       location: user?.location,
       website: user?.website,
       username: user?.username,
-      coverPhoto: user?.coverPhoto
+      coverPhoto: user?.coverPhoto,
+      isPrivate: user?.isPrivate
     }
+  }
+  async followUser(targetUserId: string, userId: string) {
+    if (targetUserId === userId) {
+      throw new ForbiddenError(USERS_MESSAGES.CANNOT_FOLLOW_YOURSELF)
+    }
+    const user = await this.findUserById(targetUserId)
+    if (!user) {
+      throw new NotFoundError(USERS_MESSAGES.USER_NOT_FOUND)
+    }
+
+    const followExist = await databaseConfig.followers.findOne({
+      followerId: new ObjectId(userId),
+      followingId: new ObjectId(targetUserId)
+    })
+    if (followExist) {
+      throw new ConflictError(USERS_MESSAGES.FOLLOWED)
+    }
+    const followStatus = user.isPrivate ? 'requested' : 'following'
+    const follower = FollowerSchema.parse({
+      followerId: new ObjectId(userId),
+      followingId: new ObjectId(targetUserId),
+      followStatus
+    })
+    await databaseConfig.followers.insertOne(follower)
+    return followStatus
   }
 }
 

@@ -1,7 +1,5 @@
-import { verify } from 'crypto'
 import { z } from 'zod'
 
-// ✅ Schema cho password phức tạp
 const passwordSchema = z
   .string()
   .min(6, 'Password must be at least 6 characters')
@@ -11,21 +9,16 @@ const passwordSchema = z
   .refine((value) => /\d/.test(value), 'Password must contain at least one number')
   .refine((value) => /[!@#$%^&*(),.?":{}|<>]/.test(value), 'Password must contain at least one special character')
 
+//Register
 export const RegisterBody = z
   .object({
-    // ✅ name không được rỗng, có độ dài từ 1 đến 100 ký tự
     name: z.string().min(1, 'Name is required').max(100, 'Name must be at most 100 characters').trim(),
 
-    // ✅ email không được rỗng và phải là email hợp lệ
     email: z.string().email('Invalid email format').trim(),
 
-    // ✅ password với các yêu cầu phức tạp
     password: passwordSchema,
 
-    // ✅ confirmPassword phải khớp với password
     confirmPassword: passwordSchema,
-
-    // ✅ birthDate phải là định dạng ISO8601
     birthDate: z.string().refine((value) => !isNaN(Date.parse(value)), 'Invalid date format (ISO8601 expected)')
   })
   .refine((data) => data.password === data.confirmPassword, {
@@ -53,7 +46,7 @@ export type RegisterResponse = z.infer<typeof RegisterRes>
 
 export const LoginBody = z
   .object({
-    email: z.string().email({ message: 'Invalid email format' }),
+    email: z.string().trim().email({ message: 'Invalid email format' }),
     password: z
       .string()
       .min(6, { message: 'Password must be at least 6 characters' })
@@ -204,9 +197,7 @@ export const GetMeRes = z.object({
     website: z.string(),
     username: z.string(),
     coverPhoto: z.string(),
-    verify: z.string(),
-    createdAt: z.string(),
-    updatedAt: z.string()
+    verify: z.string()
   })
 })
 
@@ -237,9 +228,7 @@ export const UpdateMeRes = z.object({
     username: z.string(),
     bio: z.string(),
     location: z.string(),
-    website: z.string(),
-    createdAt: z.string(),
-    updatedAt: z.string()
+    website: z.string()
   })
 })
 
@@ -253,18 +242,44 @@ export type GetProfileParamType = z.TypeOf<typeof GetProfileParam>
 
 export const GetProfileRes = z.object({
   message: z.string(),
-  data: z.object({
-    id: z.string(),
-    name: z.string(),
-    email: z.string(),
-    avatar: z.string().nullable(),
-    birthDate: z.string(),
-    bio: z.string(),
-    location: z.string(),
-    website: z.string(),
-    username: z.string(),
-    coverPhoto: z.string()
-  })
+  data: z
+    .object({
+      id: z.string(),
+      name: z.string(),
+      email: z.string(),
+      avatar: z.string().nullable(),
+      birthDate: z.string(),
+      coverPhoto: z.string(),
+      username: z.string(),
+      bio: z.string(),
+      location: z.string(),
+      website: z.string(),
+      isPrivate: z.boolean()
+    })
+    .transform((data) => {
+      if (data.isPrivate) {
+        return {
+          username: data.username,
+          name: data.name,
+          avatar: z.string().nullable(),
+          bio: z.string()
+        }
+      }
+      return data
+    })
 })
 
 export type GetProfileResType = z.TypeOf<typeof GetProfileRes>
+
+export const FollowBody = z.object({
+  targetUserId: z.string()
+})
+
+export type FollowBodyType = z.TypeOf<typeof FollowBody>
+
+export const FollowRes = z.object({
+  followStatus: z.string(),
+  message: z.string()
+})
+
+export type FollowResType = z.TypeOf<typeof FollowRes>

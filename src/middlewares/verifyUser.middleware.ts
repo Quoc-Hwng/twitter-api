@@ -7,8 +7,9 @@ import { Authorization } from '~/constants/algorithms'
 import { UserVerifyStatus } from '~/constants/enum'
 import { USERS_MESSAGES } from '~/constants/messages'
 import { verifyToken } from '~/utils/jwt'
+import { AuthRequest } from '~/type'
 
-export const isVerifiedUser = async (req: Request, res: Response, next: NextFunction) => {
+export const isVerifiedUser = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const token = Authorization(req)
     const { userId, jti, verify } = await verifyToken({
@@ -29,6 +30,7 @@ export const isVerifiedUser = async (req: Request, res: Response, next: NextFunc
       next(next(new UnauthorizedError(USERS_MESSAGES.ACCESS_TOKEN_INVALID)))
       return
     }
+    req.userId = user?._id.toString()
     next()
   } catch (error) {
     console.log(error)

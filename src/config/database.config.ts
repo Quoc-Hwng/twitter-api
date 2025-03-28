@@ -1,7 +1,8 @@
 import { Collection, Db, MongoClient, ServerApiVersion } from 'mongodb'
 import { environment } from './env.config'
 import { UserType } from '~/models/schemas/User.schema'
-import RefreshToken from '~/models/schemas/RefreshToken.schema'
+import { RefreshTokenType } from '~/models/schemas/RefreshToken.schema'
+import { FollowerType } from '~/models/schemas/Follower.schema'
 
 const uri = environment.MONGODB_URI
 
@@ -31,8 +32,11 @@ class DatabaseConfig {
   get users(): Collection<UserType> {
     return this.db.collection(environment.DB_USERS_COLLECTION)
   }
-  get refreshTokens(): Collection<RefreshToken> {
+  get refreshTokens(): Collection<RefreshTokenType> {
     return this.db.collection(environment.DB_REFRESH_TOKEN_COLLECTION)
+  }
+  get followers(): Collection<FollowerType> {
+    return this.db.collection(environment.DB_FOLLOWERS_COLLECTION)
   }
 }
 
