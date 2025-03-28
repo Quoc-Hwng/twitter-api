@@ -1,5 +1,5 @@
 import { ForbiddenError, NotFoundError, UnauthorizedError } from './../utils/errors'
-import { NextFunction, Request, Response } from 'express'
+import { NextFunction, Response } from 'express'
 import { ObjectId } from 'mongodb'
 import databaseConfig from '~/config/database.config'
 import { environment } from '~/config/env.config'
@@ -31,6 +31,8 @@ export const isVerifiedUser = async (req: AuthRequest, res: Response, next: Next
       return
     }
     req.userId = user?._id.toString()
+    req.user = user
+
     next()
   } catch (error) {
     console.log(error)

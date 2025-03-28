@@ -1,5 +1,6 @@
 import databaseConfig from '~/config/database.config'
 import {
+  ChangePasswordType,
   LoginBodyType,
   PasswordResetBodyType,
   RegisterBodyType,
@@ -13,7 +14,7 @@ import { ObjectId } from 'mongodb'
 import { ConflictError, ForbiddenError, NotFoundError, UnauthorizedError, ValidationError } from '~/utils/errors'
 import { USERS_MESSAGES } from '~/constants/messages'
 import { v4 as uuidv4 } from 'uuid'
-import { User } from '~/models/schemas/User.schema'
+import { User, UserType } from '~/models/schemas/User.schema'
 import { RefreshToken } from '~/models/schemas/RefreshToken.schema'
 import { FollowerSchema } from '~/models/schemas/Follower.schema'
 
@@ -404,6 +405,12 @@ class UsersService {
 
   async updateMe(token: string, data: UpdateMeBodyType) {
     const { userId } = await this.decodeAccessToken(token)
+    const usernameExist = await databaseConfig.users.findOne({ username: data.username })
+
+    if (usernameExist?.username === data.username) {
+      throw new ConflictError(USERS_MESSAGES.USERNAME_EXISTED)
+    }
+
     const user = await databaseConfig.users.findOneAndUpdate(
       { _id: new ObjectId(userId) },
       {
@@ -490,6 +497,25 @@ class UsersService {
     }
     await databaseConfig.followers.deleteOne(followExist)
     return USERS_MESSAGES.ALREADY_UNFOLLOWED
+  }
+  async changePassword(data: ChangePasswordType, userId: string, user: UserType) {
+    if (!(await compareValue(data.oldPassword, user?.password))) {
+      throw new UnauthorizedError(USERS_MESSAGES.OLD_PASSWORD_NOT_MATCH)
+    }
+    const hashedPassword = await hashValue(data.newPassword)
+    await databaseConfig.users.updateOne(
+      { _id: new ObjectId(userId) },
+      {
+        $set: {
+          password: hashedPassword
+        },
+        $currentDate: {
+          updatedAt: true
+        }
+      }
+    )
+    await databaseConfig.refreshTokens.deleteMany({ userId: new ObjectId(userId) })
+    return USERS_MESSAGES.CHANGE_PASSWORD_SUCCESS
   }
 }
 

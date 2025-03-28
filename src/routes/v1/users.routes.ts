@@ -1,5 +1,6 @@
 import { Router } from 'express'
 import {
+  changePasswordController,
   followController,
   forgotPasswordController,
   getMeController,
@@ -18,6 +19,7 @@ import {
 import validate from '~/middlewares/validate.middleware'
 import { isVerifiedUser } from '~/middlewares/verifyUser.middleware'
 import {
+  ChangePasswordBody,
   FollowBody,
   GetProfileParam,
   LoginBody,
@@ -47,3 +49,4 @@ usersRouter.patch('/me', validate(UpdateMeBody), isVerifiedUser, updateMeControl
 usersRouter.get('/:username', validate(GetProfileParam, 'params'), getProfileController)
 usersRouter.post('/follow', validate(FollowBody), isVerifiedUser, followController)
 usersRouter.delete('/follow/:targetUserId', validate(FollowBody, 'params'), isVerifiedUser, unFollowController)
+usersRouter.put('/change-password', validate(ChangePasswordBody), isVerifiedUser, changePasswordController)

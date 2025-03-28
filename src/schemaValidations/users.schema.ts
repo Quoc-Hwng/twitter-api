@@ -225,7 +225,11 @@ export const UpdateMeRes = z.object({
     avatar: z.string().nullable(),
     birthDate: z.string(),
     coverPhoto: z.string(),
-    username: z.string(),
+    username: z
+      .string()
+      .min(4, 'Username must be at least 4 characters')
+      .max(15, 'Username must be at most 15 characters')
+      .regex(/^(?!\d+$)[a-zA-Z0-9](?:[a-zA-Z0-9_]*[a-zA-Z0-9])?$/, 'Invalid username format'),
     bio: z.string(),
     location: z.string(),
     website: z.string()
@@ -287,3 +291,22 @@ export type FollowResType = z.TypeOf<typeof FollowRes>
 export const UnFollowRes = z.object({
   message: z.string()
 })
+
+export const ChangePasswordBody = z
+  .object({
+    oldPassword: z.string().min(6, 'Old password must be at least 6 characters'),
+    newPassword: passwordSchema,
+    confirmPassword: z.string()
+  })
+  .refine((data) => data.newPassword === data.confirmPassword, {
+    message: 'Passwords do not match',
+    path: ['confirmPassword']
+  })
+
+export type ChangePasswordType = z.infer<typeof ChangePasswordBody>
+
+export const ChangePasswordRes = z.object({
+  message: z.string()
+})
+
+export type ChangePasswordResType = z.TypeOf<typeof ChangePasswordRes>

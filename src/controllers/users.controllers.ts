@@ -1,9 +1,10 @@
-import { FollowerSchema } from '~/models/schemas/Follower.schema'
 import { NextFunction, Request, Response } from 'express'
 import { HTTP_STATUS } from '~/config/http.config'
 import { Authorization } from '~/constants/algorithms'
 import { USERS_MESSAGES } from '~/constants/messages'
 import {
+  ChangePasswordRes,
+  ChangePasswordType,
   FollowBody,
   FollowBodyType,
   FollowRes,
@@ -213,6 +214,20 @@ export const unFollowController = async (req: AuthRequest, res: Response, next: 
     console.log(data)
     const result = await usersService.unFollowUser(data.targetUserId, userId!)
     const validatedResponse = UnFollowRes.parse({
+      message: result
+    })
+    res.json(validatedResponse)
+  } catch (error) {
+    next(error)
+  }
+}
+export const changePasswordController = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const data: ChangePasswordType = req.body
+    const userId = req.userId
+    const user = req.user
+    const result = await usersService.changePassword(data, userId!, user!)
+    const validatedResponse = ChangePasswordRes.parse({
       message: result
     })
     res.json(validatedResponse)
