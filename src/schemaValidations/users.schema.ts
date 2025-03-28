@@ -283,3 +283,7 @@ export const FollowRes = z.object({
 })
 
 export type FollowResType = z.TypeOf<typeof FollowRes>
+
+export const UnFollowRes = z.object({
+  message: z.string()
+})

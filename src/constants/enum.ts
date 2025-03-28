@@ -10,3 +10,9 @@ export enum TokenType {
   ForgotPasswordToken,
   EmailVerifyToken
 }
+
+export enum FollowStatus {
+  Following,
+  Requested,
+  Blocked
+}

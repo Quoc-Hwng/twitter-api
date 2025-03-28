@@ -1,8 +1,10 @@
+import { FollowerSchema } from '~/models/schemas/Follower.schema'
 import { NextFunction, Request, Response } from 'express'
 import { HTTP_STATUS } from '~/config/http.config'
 import { Authorization } from '~/constants/algorithms'
 import { USERS_MESSAGES } from '~/constants/messages'
 import {
+  FollowBody,
   FollowBodyType,
   FollowRes,
   GetMeRes,
@@ -18,6 +20,7 @@ import {
   RegisterBodyType,
   RegisterRes,
   ReSendVerifyEmailRes,
+  UnFollowRes,
   UpdateMeBodyType,
   UpdateMeRes,
   VerifyEmailBodyType,
@@ -196,6 +199,21 @@ export const followController = async (req: AuthRequest, res: Response, next: Ne
     const validatedResponse = FollowRes.parse({
       message: USERS_MESSAGES.FOLLOW_SUCCESS,
       followStatus: result
+    })
+    res.json(validatedResponse)
+  } catch (error) {
+    next(error)
+  }
+}
+
+export const unFollowController = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const userId = req.userId
+    const data = FollowBody.parse(req.params)
+    console.log(data)
+    const result = await usersService.unFollowUser(data.targetUserId, userId!)
+    const validatedResponse = UnFollowRes.parse({
+      message: result
     })
     res.json(validatedResponse)
   } catch (error) {

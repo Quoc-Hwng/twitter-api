@@ -10,6 +10,7 @@ import {
   refreshTokenController,
   registerController,
   reSendVerifyEmailController,
+  unFollowController,
   updateMeController,
   verifyEmailController,
   verifyForgotPasswordController
@@ -45,3 +46,4 @@ usersRouter.get('/me', getMeController)
 usersRouter.patch('/me', validate(UpdateMeBody), isVerifiedUser, updateMeController)
 usersRouter.get('/:username', validate(GetProfileParam, 'params'), getProfileController)
 usersRouter.post('/follow', validate(FollowBody), isVerifiedUser, followController)
+usersRouter.delete('/follow/:targetUserId', validate(FollowBody, 'params'), isVerifiedUser, unFollowController)

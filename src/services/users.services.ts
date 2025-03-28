@@ -7,7 +7,7 @@ import {
 } from '../schemaValidations/users.schema'
 import { compareValue, hashValue } from '~/utils/bcrypt'
 import { getExpiresIn, signToken, verifyToken } from '~/utils/jwt'
-import { TokenType, UserVerifyStatus } from '~/constants/enum'
+import { FollowStatus, TokenType, UserVerifyStatus } from '~/constants/enum'
 import { environment } from '~/config/env.config'
 import { ObjectId } from 'mongodb'
 import { ConflictError, ForbiddenError, NotFoundError, UnauthorizedError, ValidationError } from '~/utils/errors'
@@ -464,9 +464,9 @@ class UsersService {
       followingId: new ObjectId(targetUserId)
     })
     if (followExist) {
-      throw new ConflictError(USERS_MESSAGES.FOLLOWED)
+      return followExist.followStatus
     }
-    const followStatus = user.isPrivate ? 'requested' : 'following'
+    const followStatus = user.isPrivate ? FollowStatus.Requested : FollowStatus.Following
     const follower = FollowerSchema.parse({
       followerId: new ObjectId(userId),
       followingId: new ObjectId(targetUserId),
@@ -474,6 +474,22 @@ class UsersService {
     })
     await databaseConfig.followers.insertOne(follower)
     return followStatus
+  }
+  async unFollowUser(targetUserId: string, userId: string) {
+    const user = await this.findUserById(targetUserId)
+    if (!user) {
+      throw new NotFoundError(USERS_MESSAGES.USER_NOT_FOUND)
+    }
+
+    const followExist = await databaseConfig.followers.findOne({
+      followerId: new ObjectId(userId),
+      followingId: new ObjectId(targetUserId)
+    })
+    if (!followExist) {
+      return USERS_MESSAGES.ALREADY_UNFOLLOWED
+    }
+    await databaseConfig.followers.deleteOne(followExist)
+    return USERS_MESSAGES.ALREADY_UNFOLLOWED
   }
 }
 
