@@ -7,6 +7,7 @@ import {
   getProfileController,
   loginController,
   logoutController,
+  oauthController,
   passwordResetController,
   refreshTokenController,
   registerController,
@@ -23,6 +24,7 @@ import {
   FollowBody,
   GetProfileParam,
   LoginBody,
+  LoginGoogleQuery,
   LogoutBody,
   PasswordResetBody,
   PasswordResetTokenBody,
@@ -50,3 +52,4 @@ usersRouter.get('/:username', validate(GetProfileParam, 'params'), getProfileCon
 usersRouter.post('/follow', validate(FollowBody), isVerifiedUser, followController)
 usersRouter.delete('/follow/:targetUserId', validate(FollowBody, 'params'), isVerifiedUser, unFollowController)
 usersRouter.put('/change-password', validate(ChangePasswordBody), isVerifiedUser, changePasswordController)
+usersRouter.get('/oauth/google', oauthController)

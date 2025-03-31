@@ -17,6 +17,7 @@ import { v4 as uuidv4 } from 'uuid'
 import { User, UserType } from '~/models/schemas/User.schema'
 import { RefreshToken } from '~/models/schemas/RefreshToken.schema'
 import { FollowerSchema } from '~/models/schemas/Follower.schema'
+import axios from 'axios'
 
 class UsersService {
   private signAccessToken({ userId, jti, verify }: { userId: string; jti: string; verify: UserVerifyStatus }) {
@@ -181,7 +182,109 @@ class UsersService {
   async findUserById(userId: string) {
     return databaseConfig.users.findOne({ _id: new ObjectId(userId) })
   }
+  private async getOauthGoogleUser(code: string) {
+    const body = {
+      code,
+      client_id: environment.GOOGLE_CLIENT_ID,
+      client_secret: environment.GOOGLE_CLIENT_SECRET,
+      redirect_uri: environment.GOOGLE_REDIRECT_URI,
+      grant_type: 'authorization_code'
+    }
+    const { data } = await axios.post('https://oauth2.googleapis.com/token', body, {
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded'
+      }
+    })
+    return data
+  }
+  private async getGoogleUserInfo(access_token: string, id_token: string) {
+    const { data } = await axios.get('https://www.googleapis.com/oauth2/v1/userinfo', {
+      params: {
+        access_token,
+        alt: 'json'
+      },
+      headers: {
+        Authorization: `Bearer ${id_token}`
+      }
+    })
+    return data as {
+      id: string
+      email: string
+      verified_email: boolean
+      name: string
+      given_name: string
+      family_name: string
+      picture: string
+    }
+  }
+  async oauth(code: string) {
+    const { access_token, id_token } = await this.getOauthGoogleUser(code)
+    const googleUser = await this.getGoogleUserInfo(access_token, id_token)
+    if (!googleUser.verified_email) {
+      throw new UnauthorizedError(USERS_MESSAGES.GMAIL_NOT_VERIFIED)
+    }
+    const user = await this.findUserByEmail(googleUser.email)
+    if (user) {
+      const userId = user._id.toString()
+      const jti = uuidv4()
+      const [accessToken, refreshToken] = await this.signAccessAndRefreshToken({
+        userId,
+        jti,
+        verify: user.verify
+      })
+      const { iat, exp } = await this.decodeRefreshToken(refreshToken)
+      const refreshTokenData = RefreshToken.parse({ userId: new ObjectId(userId), token: jti, iat, exp })
+      await databaseConfig.refreshTokens.insertOne(refreshTokenData)
+      return {
+        accessToken,
+        refreshToken,
+        user: {
+          id: userId,
+          email: user.email,
+          name: user.name,
+          avatar: user.avatar
+        }
+      }
+    } else {
+      const hashedPassword = await hashValue(googleUser.id)
+      const emailVerifyToken = uuidv4()
+      const dataValidate = User.parse({
+        email: googleUser.email,
+        name: googleUser.name,
+        avatar: googleUser.picture,
+        username: googleUser.id,
+        password: hashedPassword,
+        verifyEmailToken: emailVerifyToken,
+        birthDate: new Date(),
+        _destroy: false
+      })
+      const result = await databaseConfig.users.insertOne(dataValidate)
 
+      const userId = result.insertedId.toString()
+      const user = await this.findUserById(userId)
+      const verifyEmailToken = await this.signEmailVerifyToken({ userId, emailVerifyToken })
+      console.log(verifyEmailToken)
+
+      const [accessToken, refreshToken] = await this.signAccessAndRefreshToken({
+        userId,
+        jti: emailVerifyToken,
+        verify: UserVerifyStatus.Unverified
+      })
+      const { iat, exp } = await this.decodeRefreshToken(refreshToken)
+      const refreshTokenData = RefreshToken.parse({ userId: new ObjectId(userId), token: emailVerifyToken, iat, exp })
+      await databaseConfig.refreshTokens.insertOne(refreshTokenData)
+      return {
+        accessToken,
+        refreshToken,
+        user: {
+          id: userId,
+          email: user?.email,
+          name: user?.name,
+          avatar: user?.avatar
+        }
+      }
+    }
+  }
   async login(data: LoginBodyType) {
     //Validate email, password
     const user = await this.findUserByEmail(data.email)

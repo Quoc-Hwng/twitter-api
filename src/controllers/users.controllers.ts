@@ -12,6 +12,7 @@ import {
   GetProfileParam,
   GetProfileRes,
   LoginBodyType,
+  LoginGoogleQuery,
   LoginRes,
   LogoutBodyType,
   PasswordResetBodyType,
@@ -31,6 +32,7 @@ import {
 } from '~/schemaValidations/users.schema'
 import { AuthRequest } from '~/type'
 import usersService from '~/services/users.services'
+import { environment } from '~/config/env.config'
 
 export const loginController = async (req: Request, res: Response, next: NextFunction) => {
   try {
@@ -231,6 +233,16 @@ export const changePasswordController = async (req: AuthRequest, res: Response, 
       message: result
     })
     res.json(validatedResponse)
+  } catch (error) {
+    next(error)
+  }
+}
+export const oauthController = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { code } = LoginGoogleQuery.parse(req.query)
+    const result = usersService.oauth(code)
+    const urlRedirect = `${environment.CLIENT_REDIRECT_URI}?accessToken=${(await result).accessToken}&refreshToken=${(await result).refreshToken}`
+    return res.redirect(urlRedirect)
   } catch (error) {
     next(error)
   }
