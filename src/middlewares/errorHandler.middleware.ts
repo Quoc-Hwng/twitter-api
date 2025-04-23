@@ -3,10 +3,9 @@ import { Request, Response, NextFunction } from 'express'
 import { HttpError } from '~/utils/errors'
 import { USERS_MESSAGES } from '~/constants/messages'
 import { HTTP_STATUS } from '~/config/http.config'
+import { isProduction } from '~/config/env.config'
 
 export const errorHandler = (err: Error, req: Request, res: Response, next: NextFunction): void => {
-  const isProduction = process.env.NODE_ENV === 'production'
-
   let statusCode = HTTP_STATUS.INTERNAL_SERVER_ERROR
   let message = 'Internal Server Error'
   let errors: { path: string; message: string }[] = []

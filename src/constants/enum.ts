@@ -16,3 +16,9 @@ export enum FollowStatus {
   Requested,
   Blocked
 }
+
+export enum MediaType {
+  Image,
+  Video,
+  HLS
+}

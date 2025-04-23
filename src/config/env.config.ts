@@ -1,9 +1,14 @@
 import { getEnv } from '~/utils/getEnv'
+import minimist from 'minimist'
+
+const args = minimist(process.argv.slice(2))
+const isDev = args.env === 'development'
+export const isProduction = args.env === 'production'
+const isTest = args.env === 'test'
 
 const envConfig = () => ({
   APP_PORT: getEnv('PORT', '4000'),
   APP_HOST: getEnv('HOST', 'localhost'),
-  NODE_ENV: getEnv('NODE_ENV', 'development'),
   BASE_PATH: getEnv('BASE_PATH', '/api'),
 
   MONGODB_URI: getEnv('MONGODB_URI'),
