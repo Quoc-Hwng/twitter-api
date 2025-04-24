@@ -1,12 +1,12 @@
 import { getNameFromFullname, handleUploadImage, handleUploadVideo } from '~/utils/file'
 import { Request } from 'express'
 import sharp from 'sharp'
-import { Media } from '~/models/Other'
 import { MediaType } from '~/constants/enum'
 import path from 'path'
 import { UPLOAD_IMAGE_DIR } from '~/constants/dir'
 import { environment, isProduction } from '~/config/env.config'
-import { NotFoundError } from '~/utils/errors'
+import { Media } from '~/models/schemas/Tweet.schema'
+
 class MediasService {
   async uploadImage(req: Request) {
     const files = await handleUploadImage(req)
@@ -32,7 +32,6 @@ class MediasService {
   }
   async uploadVideo(req: Request) {
     const files = await handleUploadVideo(req)
-    console.log('Uploaded files:', files)
     const result: Media[] = await Promise.all(
       files.map(async (file) => {
         // const s3Result = await uploadFileToS3({

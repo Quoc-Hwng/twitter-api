@@ -6,7 +6,10 @@ import { errorHandler } from './middlewares/errorHandler.middleware'
 
 const app = express()
 
-databaseConfig.connect()
+databaseConfig.connect().then(() => {
+  databaseConfig.indexUsers()
+  databaseConfig.indexRefreshToken()
+})
 
 app.use(express.json())
 app.use('/v1', APIs_V1)

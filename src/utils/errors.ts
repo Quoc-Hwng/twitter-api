@@ -30,6 +30,12 @@ export class ConflictError extends HttpError {
     this.name = 'ConflictError'
   }
 }
+export class UnprocessableEntityError extends HttpError {
+  constructor(message = 'Unprocessable Entity') {
+    super(message, HTTP_STATUS.UNPROCESSABLE_ENTITY)
+    this.name = 'UnprocessableEntityError'
+  }
+}
 
 export class UnauthorizedError extends HttpError {
   constructor(message = 'Unauthorized') {

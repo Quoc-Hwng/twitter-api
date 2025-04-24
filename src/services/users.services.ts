@@ -321,7 +321,7 @@ class UsersService {
 
   //RefreshToken
   async refreshToken({ refreshToken }: { refreshToken: string }) {
-    const { userId, jti: oldJti } = await this.decodeRefreshToken(refreshToken)
+    const { userId, jti: oldJti, exp: oldExp } = await this.decodeRefreshToken(refreshToken)
     if (!userId || !oldJti) {
       throw new UnauthorizedError(USERS_MESSAGES.REFRESH_TOKEN_IS_INVALID)
     }
@@ -339,7 +339,8 @@ class UsersService {
       this.signRefreshToken({
         userId,
         jti: newJti,
-        verify: user.verify
+        verify: user.verify,
+        exp: oldExp
       }),
       databaseConfig.refreshTokens.deleteOne({ token: oldJti })
     ])

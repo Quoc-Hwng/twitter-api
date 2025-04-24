@@ -1,5 +1,5 @@
 import { Router } from 'express'
-import { uploadImageController, uploadVideoController } from '~/controllers/medias.controller'
+import { uploadImageController, uploadVideoController } from '~/controllers/medias.controllers'
 import { isVerifiedUser } from '~/middlewares/verifyUser.middleware'
 
 const mediasRouter = Router()

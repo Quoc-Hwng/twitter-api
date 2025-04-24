@@ -29,6 +29,24 @@ class DatabaseConfig {
     }
   }
 
+  indexUsers() {
+    this.users.createIndex({ email: 1, password: 1 })
+    this.users.createIndex({ email: 1 }, { unique: true })
+    this.users.createIndex({ username: 1 }, { unique: true })
+  }
+
+  indexRefreshToken() {
+    this.refreshTokens.createIndex({ token: 1 })
+    this.refreshTokens.createIndex({ exp: 1 }, { expireAfterSeconds: 0 })
+  }
+
+  async indexTweets() {
+    const exists = await this.tweets.indexExists(['content_text'])
+    if (!exists) {
+      this.tweets.createIndex({ content: 'text' }, { default_language: 'none' })
+    }
+  }
+
   get users(): Collection<UserType> {
     return this.db.collection(environment.DB_USERS_COLLECTION)
   }
@@ -37,6 +55,9 @@ class DatabaseConfig {
   }
   get followers(): Collection<FollowerType> {
     return this.db.collection(environment.DB_FOLLOWERS_COLLECTION)
+  }
+  get tweets() {
+    return this.db.collection(environment.DB_TWEETS_COLLECTION)
   }
 }
 
