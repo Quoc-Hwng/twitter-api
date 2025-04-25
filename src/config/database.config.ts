@@ -5,6 +5,7 @@ import { RefreshTokenType } from '~/models/schemas/RefreshToken.schema'
 import { FollowerType } from '~/models/schemas/Follower.schema'
 import { Tweet } from '~/models/schemas/Tweet.schema'
 import { HashtagType } from '~/models/schemas/Hashtag.schema'
+import { BookmarkType } from '~/models/schemas/Bookmark.schema'
 
 const uri = environment.MONGODB_URI
 
@@ -63,6 +64,9 @@ class DatabaseConfig {
   }
   get hashtags(): Collection<HashtagType> {
     return this.db.collection(environment.DB_HASHTAGS_COLLECTION)
+  }
+  get bookmarks(): Collection<BookmarkType> {
+    return this.db.collection(environment.DB_BOOKMARKS_COLLECTION)
   }
 }
 
