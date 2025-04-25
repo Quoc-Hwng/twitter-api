@@ -3,6 +3,8 @@ import { environment } from './env.config'
 import { UserType } from '~/models/schemas/User.schema'
 import { RefreshTokenType } from '~/models/schemas/RefreshToken.schema'
 import { FollowerType } from '~/models/schemas/Follower.schema'
+import { Tweet } from '~/models/schemas/Tweet.schema'
+import { HashtagType } from '~/models/schemas/Hashtag.schema'
 
 const uri = environment.MONGODB_URI
 
@@ -56,8 +58,11 @@ class DatabaseConfig {
   get followers(): Collection<FollowerType> {
     return this.db.collection(environment.DB_FOLLOWERS_COLLECTION)
   }
-  get tweets() {
+  get tweets(): Collection<Tweet> {
     return this.db.collection(environment.DB_TWEETS_COLLECTION)
+  }
+  get hashtags(): Collection<HashtagType> {
+    return this.db.collection(environment.DB_HASHTAGS_COLLECTION)
   }
 }
 

@@ -17,10 +17,11 @@ export const TweetSchema = z.object({
   hashtags: z.array(z.instanceof(ObjectId)),
   mentions: z.array(z.instanceof(ObjectId).or(z.string().regex(/^[a-f\d]{24}$/i))),
   medias: z.array(MediaSchema),
-  guestViews: z.number().optional().default(0),
-  userViews: z.number().optional().default(0),
+  guestViews: z.number().default(0),
+  userViews: z.number().default(0),
   createdAt: z.coerce.date().optional(),
-  updatedAt: z.coerce.date().optional()
+  updatedAt: z.coerce.date().optional(),
+  _destroy: z.boolean().default(false)
 })
 
 export type Media = z.infer<typeof MediaSchema>
