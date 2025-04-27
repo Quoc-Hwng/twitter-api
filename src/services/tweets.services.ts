@@ -9,12 +9,12 @@ import { NotFoundError, UnprocessableEntityError } from '~/utils/errors'
 
 class TweetsService {
   async checkAndCreateHashtag(hashtags: string[]) {
+    const validHashtags = hashtags.map((name) => HashtagSchema.parse({ name }).name)
     const hashtagDocuments = await Promise.all(
-      hashtags.map((hashtag) => {
-        const hashtagValue = HashtagSchema.parse({ name: hashtag })
+      validHashtags.map((name) => {
         return databaseConfig.hashtags.findOneAndUpdate(
-          hashtagValue,
-          { $setOnInsert: hashtagValue },
+          { name }, // filter đơn giản
+          { $setOnInsert: { name } },
           { upsert: true, returnDocument: 'after' }
         )
       })

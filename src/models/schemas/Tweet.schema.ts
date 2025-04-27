@@ -19,6 +19,7 @@ export const TweetSchema = z.object({
   medias: z.array(MediaSchema),
   guestViews: z.number().default(0),
   userViews: z.number().default(0),
+  likeCount: z.number().default(0),
   createdAt: z.coerce.date().optional(),
   updatedAt: z.coerce.date().optional(),
   _destroy: z.boolean().default(false)

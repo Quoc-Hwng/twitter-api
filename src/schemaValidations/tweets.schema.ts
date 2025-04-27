@@ -31,7 +31,8 @@ export const TweetRes = z.object({
     mentions: z.array(z.string()),
     medias: z.array(MediaSchema),
     guestViews: z.number(),
-    userViews: z.number()
+    userViews: z.number(),
+    likeCount: z.number()
   }),
   message: z.string()
 })

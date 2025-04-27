@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { FollowStatus } from '~/constants/enum'
 
 const passwordSchema = z
   .string()
@@ -282,7 +283,7 @@ export const FollowBody = z.object({
 export type FollowBodyType = z.TypeOf<typeof FollowBody>
 
 export const FollowRes = z.object({
-  followStatus: z.string(),
+  followStatus: z.nativeEnum(FollowStatus),
   message: z.string()
 })
 

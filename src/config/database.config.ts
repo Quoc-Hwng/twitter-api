@@ -6,6 +6,7 @@ import { FollowerType } from '~/models/schemas/Follower.schema'
 import { Tweet } from '~/models/schemas/Tweet.schema'
 import { HashtagType } from '~/models/schemas/Hashtag.schema'
 import { BookmarkType } from '~/models/schemas/Bookmark.schema'
+import { LikeType } from '~/models/schemas/Like.schema'
 
 const uri = environment.MONGODB_URI
 
@@ -67,6 +68,9 @@ class DatabaseConfig {
   }
   get bookmarks(): Collection<BookmarkType> {
     return this.db.collection(environment.DB_BOOKMARKS_COLLECTION)
+  }
+  get likes(): Collection<LikeType> {
+    return this.db.collection(environment.DB_LIKES_COLLECTION)
   }
 }
 
