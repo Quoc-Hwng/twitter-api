@@ -1,11 +1,11 @@
 import { ObjectId, WithId } from 'mongodb'
 import databaseConfig from '~/config/database.config'
-import { TweetType } from '~/constants/enum'
+import { FollowStatus, TweetAudience, TweetType } from '~/constants/enum'
 import { TWEETS_MESSAGES } from '~/constants/messages'
 import { HashtagSchema } from '~/models/schemas/Hashtag.schema'
-import { TweetSchema } from '~/models/schemas/Tweet.schema'
+import { Tweet, TweetSchema } from '~/models/schemas/Tweet.schema'
 import { TweetBodyType } from '~/schemaValidations/tweets.schema'
-import { NotFoundError, UnprocessableEntityError } from '~/utils/errors'
+import { ForbiddenError, NotFoundError, UnprocessableEntityError } from '~/utils/errors'
 
 class TweetsService {
   async checkAndCreateHashtag(hashtags: string[]) {
@@ -68,6 +68,182 @@ class TweetsService {
       userId: tweet.userId.toString(),
       hashtags: tweet.hashtags.map((hashtag) => hashtag.toString())
     }
+  }
+  async getTweetDetail(currentUserId: string | null, tweetId: string) {
+    const tweet = await databaseConfig.tweets.findOne({
+      _id: new ObjectId(tweetId)
+    })
+    if (!tweet) {
+      throw new NotFoundError('Tweet not found')
+    }
+    const author = await databaseConfig.users.findOne(
+      { _id: tweet.userId },
+      {
+        projection: {
+          isPrivate: 1,
+          tweetCircle: 1
+        }
+      }
+    )
+
+    if (!author) {
+      throw new NotFoundError('Author not found')
+    }
+    if (author.isPrivate) {
+      if (!currentUserId) {
+        throw new ForbiddenError('This account is private. Login to view.')
+      }
+
+      // Nếu user đã login, check xem có phải follower không
+      const isFollowing = await databaseConfig.followers.findOne({
+        followerId: new ObjectId(currentUserId),
+        followingId: author._id,
+        followStatus: FollowStatus.Following
+      })
+
+      if (!isFollowing) {
+        throw new ForbiddenError('You must be a follower to view this private tweet.')
+      }
+    }
+    const canReply = (async () => {
+      if (tweet.audience === TweetAudience.Everyone) {
+        return true
+      }
+
+      if (tweet.audience === TweetAudience.Followers) {
+        if (!currentUserId) return false
+        // Check current user có follow author không
+        const isFollowing = await databaseConfig.followers.findOne({
+          followerId: new ObjectId(currentUserId),
+          followingId: author._id,
+          followStatus: FollowStatus.Following
+        })
+        return !!isFollowing
+      }
+
+      if (tweet.audience === TweetAudience.TwitterCircle) {
+        if (!currentUserId) return false
+        // Check current user có trong whitelist không (tweet.replyWhitelist chứa list userId)
+        // return author?.tweetCircle?.some((id: ObjectId) => id.equals(new ObjectId(currentUserId)))
+      }
+
+      return false
+    })()
+    const [tweetDetail] = await databaseConfig.tweets
+      .aggregate<Tweet>([
+        {
+          $match: {
+            _id: new ObjectId(tweetId)
+          }
+        },
+        {
+          $lookup: {
+            from: 'hashtags',
+            localField: 'hashtags',
+            foreignField: '_id',
+            as: 'hashtags'
+          }
+        },
+        {
+          $lookup: {
+            from: 'users',
+            localField: 'mentions',
+            foreignField: '_id',
+            as: 'mentions'
+          }
+        },
+        {
+          $addFields: {
+            mentions: {
+              $map: {
+                input: '$mentions',
+                as: 'mention',
+                in: {
+                  _id: '$$mention._id',
+                  name: '$$mention.name',
+                  username: '$$mention.username',
+                  email: '$$mention.email'
+                }
+              }
+            }
+          }
+        },
+        {
+          $lookup: {
+            from: 'bookmarks',
+            localField: '_id',
+            foreignField: 'tweetId',
+            as: 'bookmarks'
+          }
+        },
+        {
+          $lookup: {
+            from: 'tweets',
+            localField: '_id',
+            foreignField: 'parent_id',
+            as: 'tweet_children'
+          }
+        },
+        {
+          $addFields: {
+            bookmarks: { $size: '$bookmarks' },
+            reTweetCount: {
+              $size: {
+                $filter: {
+                  input: '$tweet_children',
+                  as: 'item',
+                  cond: { $eq: ['$$item.type', TweetType.Retweet] }
+                }
+              }
+            },
+            commentCount: {
+              $size: {
+                $filter: {
+                  input: '$tweet_children',
+                  as: 'item',
+                  cond: { $eq: ['$$item.type', TweetType.Comment] }
+                }
+              }
+            },
+            quoteCount: {
+              $size: {
+                $filter: {
+                  input: '$tweet_children',
+                  as: 'item',
+                  cond: { $eq: ['$$item.type', TweetType.QuoteTweet] }
+                }
+              }
+            }
+          }
+        },
+        {
+          $project: {
+            tweet_children: 0
+          }
+        }
+      ])
+      .toArray()
+
+    if (!tweetDetail) {
+      throw new NotFoundError('Tweet detail not found')
+    }
+    let isLikedByCurrentUser = false
+    if (currentUserId) {
+      const liked = await databaseConfig.likes.findOne({
+        userId: new ObjectId(currentUserId),
+        tweetId: tweet._id
+      })
+      isLikedByCurrentUser = Boolean(liked)
+    }
+    const CanReply = await canReply
+    return {
+      ...tweetDetail,
+      canReply: CanReply ? { _id: tweetDetail._id?.toString() } : null,
+      isLikedByCurrentUser
+    }
+  }
+  async increaseView(tweetId: string) {
+    await databaseConfig.tweets.updateOne({ _id: new ObjectId(tweetId) }, { $inc: { views: 1 } })
   }
 }
 

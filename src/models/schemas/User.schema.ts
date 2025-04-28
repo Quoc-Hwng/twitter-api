@@ -16,6 +16,7 @@ export const User = z.object({
   forgotPasswordToken: z.string().default(''),
   verify: z.nativeEnum(UserVerifyStatus).default(UserVerifyStatus.Unverified),
 
+  twitterCircle: z.array(objectIdSchema).default([]),
   isPrivate: z.boolean().default(false),
   bio: z.string().trim().default(''),
   location: z.string().trim().default(''),
