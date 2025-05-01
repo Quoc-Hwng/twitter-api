@@ -1,4 +1,4 @@
-import { ObjectId, WithId } from 'mongodb'
+import { ObjectId } from 'mongodb'
 import databaseConfig from '~/config/database.config'
 import { FollowStatus, TweetAudience, TweetType } from '~/constants/enum'
 import { TWEETS_MESSAGES } from '~/constants/messages'
@@ -46,14 +46,13 @@ class TweetsService {
       throw new UnprocessableEntityError(TWEETS_MESSAGES.CONTENT_MUST_BE_EMPTY_STRING)
     }
     const hashtags = await this.checkAndCreateHashtag(data.hashtags)
-    console.log(hashtags)
     const newTweet = TweetSchema.parse({
       audience: data.audience,
       content: data.content,
       hashtags,
       mentions: data.mentions,
       medias: data.medias,
-      parentId: data.parentId,
+      parentId: data.parentId ? new ObjectId(data.parentId) : null,
       type: data.type,
       userId: new ObjectId(userId)
     })
@@ -81,7 +80,7 @@ class TweetsService {
       {
         projection: {
           isPrivate: 1,
-          tweetCircle: 1
+          twitterCircle: 1
         }
       }
     )
@@ -124,7 +123,7 @@ class TweetsService {
       if (tweet.audience === TweetAudience.TwitterCircle) {
         if (!currentUserId) return false
         // Check current user có trong whitelist không (tweet.replyWhitelist chứa list userId)
-        // return author?.tweetCircle?.some((id: ObjectId) => id.equals(new ObjectId(currentUserId)))
+        return author?.twitterCircle?.some((id: ObjectId | undefined) => id && id.equals(new ObjectId(currentUserId)))
       }
 
       return false
@@ -180,8 +179,8 @@ class TweetsService {
           $lookup: {
             from: 'tweets',
             localField: '_id',
-            foreignField: 'parent_id',
-            as: 'tweet_children'
+            foreignField: 'parentId',
+            as: 'tweetChildren'
           }
         },
         {
@@ -190,7 +189,7 @@ class TweetsService {
             reTweetCount: {
               $size: {
                 $filter: {
-                  input: '$tweet_children',
+                  input: '$tweetChildren',
                   as: 'item',
                   cond: { $eq: ['$$item.type', TweetType.Retweet] }
                 }
@@ -199,7 +198,7 @@ class TweetsService {
             commentCount: {
               $size: {
                 $filter: {
-                  input: '$tweet_children',
+                  input: '$tweetChildren',
                   as: 'item',
                   cond: { $eq: ['$$item.type', TweetType.Comment] }
                 }
@@ -208,7 +207,7 @@ class TweetsService {
             quoteCount: {
               $size: {
                 $filter: {
-                  input: '$tweet_children',
+                  input: '$tweetChildren',
                   as: 'item',
                   cond: { $eq: ['$$item.type', TweetType.QuoteTweet] }
                 }
@@ -244,6 +243,175 @@ class TweetsService {
   }
   async increaseView(tweetId: string) {
     await databaseConfig.tweets.updateOne({ _id: new ObjectId(tweetId) }, { $inc: { views: 1 } })
+  }
+
+  async getTweetChildren(
+    currentUserId: string | null,
+    tweetId: string,
+    tweetType: TweetType,
+    limit: number,
+    page: number
+  ) {
+    // const skip = (page - 1) * limit
+    const tweet = await databaseConfig.tweets.findOne({ _id: new ObjectId(tweetId) })
+    if (!tweet) {
+      throw new NotFoundError('Tweet not found')
+    }
+    const author = await databaseConfig.users.findOne(
+      { _id: tweet.userId },
+      {
+        projection: {
+          isPrivate: 1,
+          twitterCircle: 1
+        }
+      }
+    )
+    if (!author) {
+      throw new NotFoundError('Author not found')
+    }
+    if (author.isPrivate) {
+      if (!currentUserId) {
+        throw new ForbiddenError('This account is private. Login to view.')
+      }
+
+      // Nếu user đã login, check xem có phải follower không
+      const isFollowing = await databaseConfig.followers.findOne({
+        followerId: new ObjectId(currentUserId),
+        followingId: author._id,
+        followStatus: FollowStatus.Following
+      })
+
+      if (!isFollowing) {
+        throw new ForbiddenError('You must be a follower to view this private tweet.')
+      }
+    }
+    const tweets = await databaseConfig.tweets
+      .aggregate<Tweet>([
+        {
+          $match: {
+            parentId: new ObjectId(tweetId),
+            type: tweetType
+          }
+        },
+        {
+          $lookup: {
+            from: 'hashtags',
+            localField: 'hashtags',
+            foreignField: '_id',
+            as: 'hashtags'
+          }
+        },
+        {
+          $lookup: {
+            from: 'users',
+            localField: 'mentions',
+            foreignField: '_id',
+            as: 'mentions'
+          }
+        },
+        {
+          $addFields: {
+            mentions: {
+              $map: {
+                input: '$mentions',
+                as: 'mention',
+                in: {
+                  _id: '$$mention._id',
+                  name: '$$mention.name',
+                  username: '$$mention.username',
+                  email: '$$mention.email'
+                }
+              }
+            }
+          }
+        },
+        {
+          $lookup: {
+            from: 'bookmarks',
+            localField: '_id',
+            foreignField: 'tweetId',
+            as: 'bookmarks'
+          }
+        },
+        {
+          $lookup: {
+            from: 'tweets',
+            localField: '_id',
+            foreignField: 'parentId',
+            as: 'tweetChildren'
+          }
+        },
+        {
+          $addFields: {
+            bookmarks: {
+              $size: '$bookmarks'
+            },
+            reTweetCount: {
+              $size: {
+                $filter: {
+                  input: '$tweetChildren',
+                  as: 'item',
+                  cond: {
+                    $eq: ['$$item.type', TweetType.Retweet]
+                  }
+                }
+              }
+            },
+            commentCount: {
+              $size: {
+                $filter: {
+                  input: '$tweetChildren',
+                  as: 'item',
+                  cond: {
+                    $eq: ['$$item.type', TweetType.Comment]
+                  }
+                }
+              }
+            },
+            quoteCount: {
+              $size: {
+                $filter: {
+                  input: '$tweetChildren',
+                  as: 'item',
+                  cond: {
+                    $eq: ['$$item.type', TweetType.QuoteTweet]
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          $project: {
+            tweet_children: 0
+          }
+        },
+        {
+          $skip: limit * (page - 1) // Công thức phân trang
+        },
+        {
+          $limit: limit
+        }
+      ])
+      .toArray()
+    const ids = tweets.map((tweet) => tweet._id as ObjectId)
+    const date = new Date()
+    const [, total] = await Promise.all([
+      databaseConfig.tweets.updateMany({ _id: { $in: ids } }, { $inc: { views: 1 } }),
+      databaseConfig.tweets.countDocuments({
+        parentId: new ObjectId(tweetId),
+        type: tweetType
+      })
+    ])
+    tweets.forEach((tweet) => {
+      tweet.updatedAt = date
+      tweet.views += 1
+    })
+    console.log(tweets)
+    return {
+      tweets,
+      total
+    }
   }
 }
 

@@ -27,7 +27,7 @@ export const TweetRes = z.object({
     type: z.nativeEnum(TweetType),
     audience: z.nativeEnum(TweetAudience),
     content: z.string(),
-    parentId: z.string().nullable(),
+    parentId: z.instanceof(ObjectId).nullable(),
     hashtags: z.array(z.string()),
     mentions: z.array(z.string()),
     medias: z.array(MediaSchema),
@@ -71,3 +71,25 @@ export const GetTweetRes = z.object({
   }),
   message: z.string()
 })
+
+export type GetTweetResType = z.infer<typeof GetTweetRes>
+
+const enumValues = Object.values(TweetType).filter((v) => typeof v === 'number') as number[]
+export const GetTweetChildren = z.object({
+  page: z
+    .union([z.string(), z.number()])
+    .transform((val) => Number(val))
+    .refine((val) => val > 0, { message: 'Page must be > 0' }),
+
+  limit: z
+    .union([z.string(), z.number()])
+    .transform((val) => Number(val))
+    .refine((val) => val > 0 && val <= 100, { message: 'Limit must be between 1 and 100' }),
+
+  tweetType: z
+    .union([z.string(), z.number()])
+    .transform((val) => Number(val))
+    .refine((val) => enumValues.includes(val), { message: 'Invalid tweet type' })
+})
+
+export type GetTweetChildrenType = z.infer<typeof GetTweetChildren>
