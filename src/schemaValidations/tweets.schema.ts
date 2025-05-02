@@ -93,3 +93,15 @@ export const GetTweetChildren = z.object({
 })
 
 export type GetTweetChildrenType = z.infer<typeof GetTweetChildren>
+
+export const getListTweets = z.object({
+  page: z
+    .union([z.string(), z.number()])
+    .transform((val) => Number(val))
+    .refine((val) => val > 0, { message: 'Page must be > 0' }),
+
+  limit: z
+    .union([z.string(), z.number()])
+    .transform((val) => Number(val))
+    .refine((val) => val > 0 && val <= 100, { message: 'Limit must be between 1 and 100' })
+})
