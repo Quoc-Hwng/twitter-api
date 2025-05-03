@@ -9,6 +9,8 @@ const app = express()
 databaseConfig.connect().then(() => {
   databaseConfig.indexUsers()
   databaseConfig.indexRefreshToken()
+  databaseConfig.indexFollowers()
+  databaseConfig.indexTweets()
 })
 
 app.use(express.json())

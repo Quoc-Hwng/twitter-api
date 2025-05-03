@@ -23,6 +23,11 @@ export enum MediaType {
   HLS
 }
 
+export enum MediaTypeQuery {
+  Image = 'image',
+  Video = 'video'
+}
+
 export enum TweetType {
   Tweet,
   Retweet,
@@ -34,4 +39,9 @@ export enum TweetAudience {
   Everyone,
   Followers,
   TwitterCircle
+}
+
+export enum PeopleFollow {
+  Anyone,
+  Following
 }
